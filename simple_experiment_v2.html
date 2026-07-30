@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Simple Painting Experiment V2</title>
+
+  <!-- jsPsych: the experiment engine -->
+  <script src="https://unpkg.com/jspsych@8.2.1"></script>
+  <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css" rel="stylesheet">
+
+  <!-- Plugins: keyboard pages, clickable image choices, and image preload -->
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
+
+  <!-- PapaParse reads the CSV trial list -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 20px;
+      line-height: 1.4;
+    }
+
+    .page {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .reference {
+      width: 900px;
+      max-width: 95%;
+      max-height: 280px;
+      object-fit: contain;
+    }
+
+    .new-painting {
+      width: 320px;
+      max-width: 90%;
+      max-height: 230px;
+      object-fit: contain;
+      margin-top: 20px;
+    }
+
+    .choice-img {
+      width: 180px;
+      height: 140px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    /*
+      SIMPLE EXPERIMENT VERSION 2
+
+      What this file does:
+      1. Shows a welcome page.
+      2. Shows simple instructions.
+      3. Reads trial information from a CSV file.
+      4. Shows the same four-painter reference image on every trial.
+      5. Shows a new random painting and says which painter it belongs to.
+      6. Lets the participant click one of four possible inside fills.
+      7. Saves the selected choice type in the data.
+
+      The participant will NOT see the data at the end.
+      You can see the data in the browser console for now.
+    */
+
+    const csvFile = "trial_list_v2.csv";
+    const referenceImage = "images/four_painters_reference.svg";
+
+    const jsPsych = initJsPsych({
+      on_finish: function() {
+        const dataAsCSV = jsPsych.data.get().ignore("rt").csv();
+
+        // For now, this prints the data in the browser console.
+        // Later, this can be replaced with code that saves data to your study platform.
+        console.log(dataAsCSV);
+      }
+    });
+
+    Papa.parse(csvFile, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        const trialList = results.data;
+        const timeline = [];
+
+        // Preload images so trials run smoothly.
+        const images = [referenceImage];
+
+        trialList.forEach(function(row) {
+          images.push(row.new_painting);
+          images.push(row.choice_1);
+          images.push(row.choice_2);
+          images.push(row.choice_3);
+          images.push(row.choice_4);
+        });
+
+        timeline.push({
+          type: jsPsychPreload,
+          images: images
+        });
+
+        // Page 1: Welcome.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <h2>Welcome</h2>
+              <p>Welcome!</p>
+              <p>In this experiment, you will explore paintings created by four imaginary painters.</p>
+              <p>You will see examples of their previous artwork and complete new paintings created by these painters.</p>
+              <p>Press any key to begin.</p>
+            </div>
+          `
+        });
+
+        // Page 2: Meet the painters.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <h2>Meet the painters</h2>
+              <p>There are four imaginary painters in this experiment:</p>
+              <p>Emily</p>
+              <p>Isabella</p>
+              <p>Grace</p>
+              <p>Olivia</p>
+              <p>Each painter has their own way of creating paintings.</p>
+            </div>
+          `
+        });
+
+        // Page 3: Examples.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <h2>Examples</h2>
+              <p>Each painter has created many paintings in the past.</p>
+              <p>Below are examples randomly selected from each painter's previous artwork.</p>
+              <img class="reference" src="${referenceImage}">
+              <p>These examples are only a small sample of each painter's work.</p>
+              <p>You may refer to these examples at any time during the experiment.</p>
+            </div>
+          `
+        });
+
+        // Page 4: Task.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <h2>Task</h2>
+              <p>You will now see new paintings created by these painters.</p>
+              <p>The painter's name will always be shown.</p>
+              <p>Each painting will have one missing part.</p>
+              <p>Your task is to choose the option that best completes the painting based on the examples you have seen.</p>
+            </div>
+          `
+        });
+
+        // Make one clickable trial from each row in the CSV.
+        trialList.forEach(function(row) {
+          const choices = [
+            row.choice_1,
+            row.choice_2,
+            row.choice_3,
+            row.choice_4
+          ];
+
+          const choiceTypes = [
+            row.choice_1_type,
+            row.choice_2_type,
+            row.choice_3_type,
+            row.choice_4_type
+          ];
+
+          timeline.push({
+            type: jsPsychHtmlButtonResponse,
+
+            stimulus: `
+              <div class="page">
+                <img class="reference" src="${referenceImage}">
+
+                <p>This new random painting belongs to <b>${row.target_painter}</b>.</p>
+                <img class="new-painting" src="${row.new_painting}">
+
+                <p>What could the inside fill most likely look like?</p>
+              </div>
+            `,
+
+            choices: choices,
+
+            button_html: function(choice) {
+              return `<button><img class="choice-img" src="${choice}"></button>`;
+            },
+
+            button_layout: "grid",
+            grid_rows: 2,
+            grid_columns: 2,
+
+            data: {
+              trial_id: row.trial_id,
+              phase: row.phase,
+              target_painter: row.target_painter,
+              new_painting: row.new_painting,
+              choice_1_type: row.choice_1_type,
+              choice_2_type: row.choice_2_type,
+              choice_3_type: row.choice_3_type,
+              choice_4_type: row.choice_4_type
+            },
+
+            on_finish: function(data) {
+              data.selected_choice_number = data.response + 1;
+              data.selected_choice_image = choices[data.response];
+              data.selected_choice_type = choiceTypes[data.response];
+            }
+          });
+        });
+
+        // End page. The participant does not see the data.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <p>You are finished. Thank you.</p>
+            </div>
+          `,
+          choices: "NO_KEYS",
+          trial_duration: 2000
+        });
+
+        jsPsych.run(timeline);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="320" viewBox="0 0 920 320">
+  <rect width="920" height="320" fill="#fffdf7"/>
+  <text x="460" y="34" font-family="Arial" font-size="22" text-anchor="middle" fill="#222">Four painters reference image placeholder</text>
+  <g font-family="Arial" font-size="18" text-anchor="middle" fill="#222">
+    <rect x="40" y="70" width="180" height="190" fill="#e7f0ed" stroke="#777"/>
+    <circle cx="130" cy="150" r="46" fill="#487b7f"/>
+    <text x="130" y="290">Painter 1</text>
+    <rect x="260" y="70" width="180" height="190" fill="#f4ead5" stroke="#777"/>
+    <rect x="315" y="105" width="70" height="90" fill="#b56f4a"/>
+    <text x="350" y="290">Painter 2</text>
+    <rect x="480" y="70" width="180" height="190" fill="#ece8f5" stroke="#777"/>
+    <path d="M525 215 L570 105 L615 215 Z" fill="#6d5a9c"/>
+    <text x="570" y="290">Painter 3</text>
+    <rect x="700" y="70" width="180" height="190" fill="#eaf1dc" stroke="#777"/>
+    <path d="M740 170 C775 95 820 95 850 170 C820 230 775 230 740 170Z" fill="#6f8f3d"/>
+    <text x="790" y="290">Painter 4</text>
+  </g>
+</svg>

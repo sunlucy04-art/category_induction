@@ -1,0 +1,4 @@
+trial_id,phase,question,choice_1,choice_2,choice_3,choice_4,choice_1_type,choice_2_type,choice_3_type,choice_4_type
+example_001,example,Which internal pattern could this new random painting have?,images/example_choice_a.svg,images/example_choice_b.svg,images/example_choice_c.svg,images/example_choice_d.svg,distractor,feature_feature_strategy,general_category,distractor
+trial_001,formal,Which internal pattern could this new random painting have?,images/trial_001_a.svg,images/trial_001_b.svg,images/trial_001_c.svg,images/trial_001_d.svg,general_category,distractor,feature_feature_strategy,distractor
+trial_002,formal,Which internal pattern could this new random painting have?,images/trial_002_a.svg,images/trial_002_b.svg,images/trial_002_c.svg,images/trial_002_d.svg,distractor,general_category,distractor,feature_feature_strategy
