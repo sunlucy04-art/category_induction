@@ -1,0 +1,336 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Simple Painting Experiment Proportion Version</title>
+
+  <!-- jsPsych: runs the experiment -->
+  <script src="https://unpkg.com/jspsych@8.2.1"></script>
+  <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css" rel="stylesheet">
+
+  <!-- Plugins used in this experiment -->
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
+
+  <!-- PapaParse reads the CSV trial list -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 18px;
+      line-height: 1.25;
+      margin: 0;
+    }
+
+    .page {
+      max-width: 940px;
+      margin: auto;
+    }
+
+    .page p {
+      margin: 8px 0;
+    }
+
+    .trial-page {
+      padding-top: 6px;
+    }
+
+    .reference {
+      width: 760px;
+      max-width: 95%;
+      max-height: 260px;
+      object-fit: contain;
+      margin-bottom: 4px;
+    }
+
+    .example-board {
+      width: 760px;
+      max-width: 95vw;
+      height: 260px;
+      margin: 0 auto 4px;
+      border: 2px solid #111;
+      position: relative;
+      box-sizing: border-box;
+      background: white;
+    }
+
+    .example-board-title {
+      font-family: Georgia, serif;
+      font-weight: bold;
+      font-size: 24px;
+      margin: 0 0 4px;
+      line-height: 1;
+    }
+
+    .example-item {
+      position: absolute;
+      width: 92px;
+      height: 92px;
+      object-fit: contain;
+      transform: translate(-50%, -50%);
+    }
+
+    .new-painting {
+      width: 210px;
+      max-width: 90%;
+      max-height: 155px;
+      object-fit: contain;
+      margin: 4px 0 8px;
+    }
+
+    .choice-img {
+      width: 190px;
+      height: 135px;
+      object-fit: contain;
+    }
+
+    .jspsych-btn {
+      margin: 6px 18px;
+      padding: 8px 14px;
+      background: white;
+      border: 2px solid #333;
+      cursor: pointer;
+    }
+
+    .jspsych-content {
+      max-width: 1000px;
+    }
+
+    #jspsych-html-button-response-btngroup {
+      margin-top: 0;
+    }
+
+    .jspsych-btn:hover {
+      background: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    /*
+      SIMPLE EXPERIMENT PROPORTION VERSION
+
+      What this file does:
+      1. Shows the instruction pages.
+      2. Reads the trial list from a CSV file.
+      3. Shows only the current painter/category example image during each trial.
+      4. On every trial, tells the participant which painter/category the new painting belongs to.
+      5. Shows the new painting outline without a Gabor patch.
+      6. Shows two clickable options:
+         - general_category: the painter/category dominant frequency
+         - shape_specific: this shape's dominant frequency inside this painter/category
+      7. Records which strategy the participant selected and the reaction time.
+
+      The participant will NOT see the data at the end.
+      For now, you can see the data in the browser console.
+    */
+
+    const csvFile = "proportion_trial_list.csv";
+    const exampleFile = "proportion_single_category_example_list.csv";
+
+    function readCSV(fileName) {
+      return new Promise(function(resolve) {
+        Papa.parse(fileName, {
+          download: true,
+          header: true,
+          skipEmptyLines: true,
+          complete: function(results) {
+            resolve(results.data);
+          }
+        });
+      });
+    }
+
+    function createExampleBoard(painter, examplesByPainter) {
+      const examples = examplesByPainter[painter] || [];
+
+      const imagesHTML = examples
+        .slice()
+        .sort(function(a, b) {
+          return Number(a.single_category_example_number) - Number(b.single_category_example_number);
+        })
+        .map(function(example) {
+          const left = Number(example.single_category_x_position) / 820 * 100;
+          const top = Number(example.single_category_y_position) / 365 * 100;
+
+          return `
+            <img
+              class="example-item"
+              src="${example.image}"
+              style="left: ${left}%; top: ${top}%;">
+          `;
+        })
+        .join("");
+
+      return `
+        <div class="example-board-title">${painter}</div>
+        <div class="example-board">${imagesHTML}</div>
+      `;
+    }
+
+    const jsPsych = initJsPsych({
+      on_finish: function() {
+        const dataAsCSV = jsPsych.data.get().csv();
+
+        // This prints the data in the browser console for now.
+        console.log(dataAsCSV);
+      }
+    });
+
+    Promise.all([readCSV(csvFile), readCSV(exampleFile)]).then(function(files) {
+        const trialList = files[0];
+        const exampleList = files[1];
+        const timeline = [];
+
+        const examplesByPainter = {};
+        exampleList.forEach(function(row) {
+          if (!examplesByPainter[row.painter]) {
+            examplesByPainter[row.painter] = [];
+          }
+          examplesByPainter[row.painter].push(row);
+        });
+
+        // Preload images before the experiment starts.
+        const images = [];
+
+        trialList.forEach(function(row) {
+          images.push(row.target_outline_image);
+          images.push(row.left_option_image);
+          images.push(row.right_option_image);
+        });
+
+        exampleList.forEach(function(row) {
+          images.push(row.image);
+        });
+
+        timeline.push({
+          type: jsPsychPreload,
+          images: images
+        });
+
+        // Page 1: Welcome.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <h2>Welcome</h2>
+              <p>Welcome!</p>
+              <p>In this experiment, you will explore paintings created by different painters.</p>
+              <p>You will see examples of their previous artwork and complete new paintings created by these painters.</p>
+              <p>Press any key to begin.</p>
+            </div>
+          `
+        });
+
+        // Page 2: Examples.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <h2>Examples</h2>
+              <p>Each painter has created many paintings in the past.</p>
+              <p>During each question, you will see examples randomly selected from that painter's previous artwork.</p>
+              <p>These examples are only a small sample of each painter's work.</p>
+              <p>You may refer to these examples at any time during the experiment.</p>
+              <p>Press any key to continue.</p>
+            </div>
+          `
+        });
+
+        // Page 3: Task.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <h2>Task</h2>
+              <p>You will now see new paintings created by these painters.</p>
+              <p>Each painting will have one missing part.</p>
+              <p>Your task is to choose the option that best completes the painting based on the examples you have seen.</p>
+              <p>Press any key to start.</p>
+            </div>
+          `
+        });
+
+        // Make one clickable trial from each row in the CSV.
+        trialList.forEach(function(row) {
+          const choices = [
+            row.left_option_image,
+            row.right_option_image
+          ];
+
+          const choiceStrategies = [
+            row.left_option_strategy,
+            row.right_option_strategy
+          ];
+
+          const choiceFrequencies = [
+            row.left_option_frequency,
+            row.right_option_frequency
+          ];
+
+          timeline.push({
+            type: jsPsychHtmlButtonResponse,
+
+            stimulus: `
+              <div class="page trial-page">
+                ${createExampleBoard(row.painter, examplesByPainter)}
+
+                <p>This new painting belongs to <b>${row.painter}</b>.</p>
+                <img class="new-painting" src="${row.target_outline_image}">
+
+                <p>What could the inside look like most likely?</p>
+              </div>
+            `,
+
+            choices: choices,
+
+            button_html: function(choice) {
+              return `<button class="jspsych-btn"><img class="choice-img" src="${choice}"></button>`;
+            },
+
+            button_layout: "grid",
+            grid_rows: 1,
+            grid_columns: 2,
+
+            data: {
+              trial_id: row.trial_id,
+              painter: row.painter,
+              shape: row.shape,
+              repeat: row.repeat,
+              target_outline_image: row.target_outline_image,
+              category_dominant_frequency: row.category_dominant_frequency,
+              shape_dominant_frequency: row.shape_dominant_frequency,
+              left_option_strategy: row.left_option_strategy,
+              right_option_strategy: row.right_option_strategy,
+              correct_response: row.correct_response
+            },
+
+            on_finish: function(data) {
+              data.selected_side = data.response === 0 ? "left" : "right";
+              data.selected_choice_image = choices[data.response];
+              data.selected_strategy = choiceStrategies[data.response];
+              data.selected_frequency = choiceFrequencies[data.response];
+              data.reaction_time_ms = data.rt;
+            }
+          });
+        });
+
+        // End page. The participant does not see the data.
+        timeline.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: `
+            <div class="page">
+              <p>You are finished. Thank you.</p>
+            </div>
+          `,
+          choices: "NO_KEYS",
+          trial_duration: 2000
+        });
+
+        jsPsych.run(timeline);
+    });
+  </script>
+</body>
+</html>
