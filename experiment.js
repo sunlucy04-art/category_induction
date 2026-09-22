@@ -99,7 +99,7 @@ function runExperiment() {
             <h2>Welcome</h2>
             <p>Welcome!</p>
             <p>In this experiment, you will explore paintings created by different painters.</p>
-            <p>You will see examples of their previous artwork and complete new paintings created by these painters.</p>
+            <p>You will see examples of their previous artwork and will be asked to infer something about a brand new paintings created by each painter.</p>
             <p>Press any key to begin.</p>
           </div>
         `
@@ -112,7 +112,7 @@ function runExperiment() {
           <div class="page">
             <h2>Examples</h2>
             <p>Each painter has created many paintings in the past.</p>
-            <p>During each question, you will see examples randomly selected from that painter's previous artwork.</p>
+            <p>You will see some randomly selected examples from that painter's previous artwork.</p>
             <p>These examples are only a small sample of each painter's work.</p>
             <p>You may refer to these examples at any time during the experiment.</p>
             <p>Press any key to continue.</p>
@@ -126,9 +126,9 @@ function runExperiment() {
         stimulus: `
           <div class="page">
             <h2>Task</h2>
-            <p>You will now see new paintings created by these painters.</p>
+            <p>You will now see a new paintings created by these artist.</p>
             <p>Each painting will have one missing part.</p>
-            <p>Your task is to choose the option that best completes the painting based on the examples you have seen.</p>
+            <p>Your task is to choose the option that best completes the painting. Remember, you are filling in a NEW painting the artist is creating.</p>
             <p>Press any key to start.</p>
           </div>
         `

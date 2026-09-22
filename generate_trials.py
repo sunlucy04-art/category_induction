@@ -40,21 +40,6 @@ SETTINGS = {
     # Change this number if you want more or fewer categories/trials.
     "number_of_categories": 25,
 
-    # How strongly the critical shape's own examples favor its own dominant
-    # frequency. Each category draws its own weight (uniformly) from this
-    # range, so the exact proportion is jittered a little category to
-    # category instead of being a fixed ratio. Whatever weight is drawn, the
-    # generator keeps resampling that shape's examples until its dominant
-    # frequency actually comes out as the single most common one.
-    "critical_shape_dominant_weight_range": (0.55, 0.80),
-
-    # Same idea, but for how strongly each filler shape's examples are
-    # randomly sampled toward the category's general (cross-category)
-    # dominant frequency. Each filler shape draws its own weight
-    # independently, so filler shapes act as noise around the general
-    # frequency rather than a hand-picked "third frequency" slot.
-    "filler_dominant_weight_range": (0.45, 0.70),
-
     # ------------------------------------------------------------------
     # Stimulus files. Point these at a different stimulus set's folders to
     # reuse this whole generator on a completely different set of shapes and
@@ -181,10 +166,93 @@ PAINTER_NAMES = [
 ]
 
 
+def _partitions(total, max_value, max_parts):
+    # Every non-increasing sequence of positive integers, of length up to
+    # max_parts, summing to total, with no single part above max_value.
+    if max_parts == 0:
+        if total == 0:
+            yield ()
+        return
+    if total == 0:
+        yield ()
+        return
+    for value in range(min(total, max_value), 0, -1):
+        for rest in _partitions(total - value, value, max_parts - 1):
+            yield (value,) + rest
+
+
+def enumerate_plurality_patterns(total, max_parts):
+    # Every way to split `total` examples across at most `max_parts`
+    # frequencies (sorted largest-first) where the largest is an
+    # unambiguous, strictly-greater-than-every-other-single-count winner —
+    # i.e. every gabor-count "shape" a category could legally have, e.g.
+    # (5, 3), (4, 3, 1), (4, 2, 1, 1), (3, 2, 2, 1)... Recomputed from
+    # whatever examples_per_category / critical_shape_example_count / fill
+    # count you're using, so this doesn't need updating by hand if those
+    # settings change.
+    return [
+        parts for parts in _partitions(total, total, max_parts)
+        if len(parts) == 1 or parts[0] > parts[1]
+    ]
+
+
+def is_pair_feasible(category_pattern, critical_pattern, n_frequencies):
+    # Checks a (category_pattern, critical_pattern) pair properly: the
+    # critical shape's OWN top count needs a category-wide slot (other than
+    # general's) with enough room, AND every one of its remaining, smaller
+    # counts needs its own distinct slot (which can include general's own
+    # slot, since general is allowed to show up as noise inside the
+    # critical shape's examples too) with enough leftover room. Checking
+    # only the top count isn't enough — e.g. category pattern (5, 3) has
+    # room for critical pattern (2, 1, 1)'s top count, but only ONE other
+    # slot (general's) is left over for its two remaining 1's, which need
+    # two distinct slots — so that pairing doesn't actually work out.
+    non_general_capacities = list(category_pattern[1:]) + [0] * (n_frequencies - 1 - len(category_pattern[1:]))
+    for index, capacity in enumerate(non_general_capacities):
+        if capacity < critical_pattern[0]:
+            continue
+        remaining_capacities = non_general_capacities[:index] + non_general_capacities[index + 1:]
+        remaining_capacities.append(category_pattern[0])
+        remaining_capacities.sort(reverse=True)
+        remaining_demands = sorted(critical_pattern[1:], reverse=True)
+        if all(demand <= capacity for demand, capacity in zip(remaining_demands, remaining_capacities)):
+            return True
+    return False
+
+
+def feasible_configuration_pairs(category_patterns, critical_patterns, n_frequencies):
+    return [
+        (category_pattern, critical_pattern)
+        for category_pattern in category_patterns
+        for critical_pattern in critical_patterns
+        if is_pair_feasible(category_pattern, critical_pattern, n_frequencies)
+    ]
+
+
+CATEGORY_GABOR_PATTERNS = enumerate_plurality_patterns(SETTINGS["examples_per_category"], len(FILL_POOL))
+CRITICAL_GABOR_PATTERNS = enumerate_plurality_patterns(SETTINGS["critical_shape_example_count"], len(FILL_POOL))
+CONFIGURATION_PAIRS = feasible_configuration_pairs(CATEGORY_GABOR_PATTERNS, CRITICAL_GABOR_PATTERNS, len(FILL_POOL))
+
+if not CONFIGURATION_PAIRS:
+    raise ValueError(
+        "No (category, critical shape) gabor-count pattern is jointly satisfiable with the current "
+        "examples_per_category / critical_shape_example_count / number of fills. The critical shape "
+        "needs enough of its own examples, and the category needs enough room outside its top frequency, "
+        "for the critical shape's own dominant frequency to have somewhere to win."
+    )
+
+
 def make_random_category_plans():
     rng = random.Random(SETTINGS["random_seed"] + 42)
     frequencies = list(FILL_POOL)
     n_fillers = SETTINGS["shapes_per_category"] - 1
+
+    # Cycle evenly through every feasible (category, critical shape) gabor
+    # pattern pair, so each one gets used as close to equally often as
+    # possible (differing by at most 1) no matter how many categories you
+    # generate — this is the actual counterbalancing.
+    shuffled_configuration_pairs = list(CONFIGURATION_PAIRS)
+    rng.shuffle(shuffled_configuration_pairs)
 
     all_shape_combinations = []
     for test_shape in SHAPE_POOL:
@@ -221,12 +289,18 @@ def make_random_category_plans():
         )
         shape_dominant_counts[shape_dominant] += 1
 
+        category_pattern, critical_pattern = shuffled_configuration_pairs[
+            category_index % len(shuffled_configuration_pairs)
+        ]
+
         category_plans.append({
             "painter": painter,
             "general_dominant": general,
             "critical_test_shape": test_shape,
             "shape_dominant": shape_dominant,
             "filler_shapes": list(fillers),
+            "category_gabor_pattern": category_pattern,
+            "critical_gabor_pattern": critical_pattern,
         })
 
     return category_plans
@@ -235,14 +309,67 @@ def make_random_category_plans():
 CATEGORY_PLANS = make_random_category_plans()
 
 
-def sample_weighted_frequencies(n_examples, dominant_frequency, all_frequencies, dominant_weight, rng):
-    # Draws each example's frequency independently: `dominant_weight` chance of
-    # the target frequency, with the rest of the probability spread evenly
-    # across the other frequencies (this is the "noise").
-    other_frequencies = [frequency for frequency in all_frequencies if frequency != dominant_frequency]
-    weights = [dominant_weight] + [(1 - dominant_weight) / len(other_frequencies)] * len(other_frequencies)
-    frequencies = [dominant_frequency] + other_frequencies
-    return rng.choices(frequencies, weights=weights, k=n_examples)
+def assign_pattern_counts(top_frequency, pattern, other_frequencies, rng):
+    # Turns a magnitude pattern like (4, 3, 1) into an actual {frequency:
+    # count} map: top_frequency gets the largest count, and the remaining
+    # counts land on a randomly chosen subset of other_frequencies (so
+    # which specific frequency comes in 2nd/3rd/... varies category to
+    # category, not just how many examples that place gets).
+    remaining_counts = list(pattern[1:])
+    chosen_frequencies = rng.sample(other_frequencies, len(remaining_counts))
+    counts = {top_frequency: pattern[0]}
+    counts.update(zip(chosen_frequencies, remaining_counts))
+    for frequency in FILL_POOL:
+        counts.setdefault(frequency, 0)
+    return counts
+
+
+def build_category_frequency_lists(general, shape_dominant, category_pattern, critical_pattern, filler_counts, rng, max_attempts=2000):
+    # Constructs exact per-shape frequency lists matching the category's
+    # assigned patterns exactly (not just probably). The two random
+    # assignment steps below are retried together until they're mutually
+    # consistent — the critical shape's own counts can never exceed what
+    # the category-wide pattern makes available for that same frequency,
+    # since fillers have to supply the difference and can't contribute a
+    # negative amount.
+    non_general_frequencies = [frequency for frequency in FILL_POOL if frequency != general]
+    non_shape_dominant_frequencies = [frequency for frequency in FILL_POOL if frequency != shape_dominant]
+
+    for _ in range(max_attempts):
+        category_counts = assign_pattern_counts(general, category_pattern, non_general_frequencies, rng)
+        if category_counts[shape_dominant] < critical_pattern[0]:
+            continue
+
+        critical_counts = assign_pattern_counts(shape_dominant, critical_pattern, non_shape_dominant_frequencies, rng)
+        filler_totals = {
+            frequency: category_counts[frequency] - critical_counts[frequency]
+            for frequency in FILL_POOL
+        }
+        if any(count < 0 for count in filler_totals.values()):
+            continue
+
+        critical_frequency_list = []
+        for frequency, count in critical_counts.items():
+            critical_frequency_list.extend([frequency] * count)
+        rng.shuffle(critical_frequency_list)
+
+        filler_pool = []
+        for frequency, count in filler_totals.items():
+            filler_pool.extend([frequency] * count)
+        rng.shuffle(filler_pool)
+
+        filler_frequency_lists = []
+        cursor = 0
+        for count in filler_counts:
+            filler_frequency_lists.append(filler_pool[cursor:cursor + count])
+            cursor += count
+
+        return critical_frequency_list, filler_frequency_lists
+
+    raise ValueError(
+        f"Could not fit category pattern {category_pattern} and critical shape pattern {critical_pattern} "
+        f"together after {max_attempts} attempts."
+    )
 
 
 def is_strict_plurality(frequency_list, target_frequency):
@@ -264,10 +391,6 @@ def build_categories():
     categories = {}
     used_combinations = set()
     rng = random.Random(SETTINGS["random_seed"] + 7)
-    frequencies = list(FILL_POOL)
-    critical_weight_range = SETTINGS["critical_shape_dominant_weight_range"]
-    filler_weight_range = SETTINGS["filler_dominant_weight_range"]
-    max_attempts = 2000
 
     for plan in CATEGORY_PLANS:
         painter = plan["painter"]
@@ -275,6 +398,8 @@ def build_categories():
         test_shape = plan["critical_test_shape"]
         shape_dominant = plan["shape_dominant"]
         filler_shapes = plan["filler_shapes"]
+        category_pattern = plan["category_gabor_pattern"]
+        critical_pattern = plan["critical_gabor_pattern"]
 
         shape_combo = (test_shape, tuple(sorted(filler_shapes)))
         if shape_combo in used_combinations:
@@ -291,40 +416,14 @@ def build_categories():
             )
         filler_counts = split_examples_across_shapes(filler_total, n_fillers, rng)
 
-        # Two plurality rules must both hold, so there's always a single
-        # clear winner (no ties) at both levels:
-        #   1. Within the critical shape's own examples, its own dominant
-        #      frequency (shape_dominant) must be the clear winner.
-        #   2. Across the WHOLE category (critical shape + every filler
-        #      combined), the category's general frequency must be the
-        #      clear winner — and it's structurally guaranteed different
-        #      from shape_dominant already, from the planning step above.
-        # The critical shape's and every filler shape's examples are
-        # redrawn together on each attempt, so an unlucky combination just
-        # gets resampled as a whole rather than getting stuck chasing one
-        # rule while violating the other.
-        for _ in range(max_attempts):
-            critical_weight = rng.uniform(*critical_weight_range)
-            test_frequencies = sample_weighted_frequencies(test_count, shape_dominant, frequencies, critical_weight, rng)
-            if not is_strict_plurality(test_frequencies, shape_dominant):
-                continue
-
-            filler_frequency_lists = [
-                sample_weighted_frequencies(count, general, frequencies, rng.uniform(*filler_weight_range), rng)
-                for count in filler_counts
-            ]
-            all_frequencies_in_category = test_frequencies + [
-                frequency for frequency_list in filler_frequency_lists for frequency in frequency_list
-            ]
-            if is_strict_plurality(all_frequencies_in_category, general):
-                break
-        else:
-            raise ValueError(
-                f"{painter}: could not find examples where {shape_dominant} is a clear winner within the "
-                f"critical shape AND {general} is a clear winner across the whole category after "
-                f"{max_attempts} attempts. Try raising critical_shape_example_count's margin below "
-                f"examples_per_category, or narrowing the dominant-weight ranges."
-            )
+        # Build examples that match the category's assigned gabor-count
+        # patterns exactly (this is what makes the plurality rules hold and
+        # what makes the counterbalancing in CONFIGURATION_PAIRS meaningful
+        # — every category really does land on the pattern it was assigned,
+        # not just something probably close to it).
+        test_frequencies, filler_frequency_lists = build_category_frequency_lists(
+            general, shape_dominant, category_pattern, critical_pattern, filler_counts, rng
+        )
 
         shapes = [
             {
@@ -660,6 +759,15 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
+def gabor_count_pattern(frequency_list):
+    # The full shape of a distribution, e.g. (4, 3, 1) or (5, 2, 1) — every
+    # frequency that appears, sorted largest-first, regardless of which
+    # specific gabor id got which count. Two categories with the same
+    # dominant share (e.g. 4/8 = 0.5) can still have very different shapes
+    # here (4-2-1-1 vs 4-3-1-0), which a bare "share" number hides.
+    return tuple(sorted(Counter(frequency_list).values(), reverse=True))
+
+
 def summarize_examples(example_rows):
     summary = []
     for painter in CATEGORIES.keys():
@@ -673,6 +781,11 @@ def summarize_examples(example_rows):
         test_dominant_count = sum(1 for row in test_rows if row["actual_frequency"] == shape_dominant)
         category_general_count = sum(1 for row in rows if row["actual_frequency"] == general)
 
+        filler_shapes = [shape for shape in category["shapes"] if shape["role"] == "filler"]
+        filler_example_proportions = tuple(sorted(
+            round(shape["example_count"] / len(rows), 3) for shape in filler_shapes
+        ))
+
         summary.append({
             "painter": painter,
             "shapes_per_category": len(category["shapes"]),
@@ -680,13 +793,61 @@ def summarize_examples(example_rows):
             "general_dominant_frequency": general,
             "general_dominant_count_category_wide": category_general_count,
             "general_dominant_share_category_wide": round(category_general_count / len(rows), 3),
+            "category_wide_gabor_count_pattern": ",".join(map(str, gabor_count_pattern(
+                [row["actual_frequency"] for row in rows]
+            ))),
             "test_shape": test_shape["shape"],
             "shape_dominant_frequency": shape_dominant,
             "test_shape_total_examples": len(test_rows),
             "test_shape_dominant_count": test_dominant_count,
             "test_shape_dominant_share": round(test_dominant_count / len(test_rows), 3),
+            "critical_shape_gabor_count_pattern": ",".join(map(str, gabor_count_pattern(
+                [row["actual_frequency"] for row in test_rows]
+            ))),
+            "critical_shape_example_proportion": round(len(test_rows) / len(rows), 3),
+            "filler_shape_example_proportions": ",".join(str(p) for p in filler_example_proportions),
         })
     return summary
+
+
+def summarize_statistical_configurations(design_summary_rows):
+    # Groups categories/trials by their "statistical configuration": the
+    # full shape of the category-wide gabor distribution (e.g. "4,3,1" vs
+    # "5,2,1" vs "4,2,1,1" — not just the dominant's share, since two very
+    # different-looking distributions can share the same dominant share)
+    # combined with the full shape of the critical shape's own distribution.
+    # This is what actually varies category to category by design; example
+    # counts per shape are intentionally left out of the key since they're
+    # a fixed setting today, not a condition that varies.
+    groups = {}
+    for row in design_summary_rows:
+        config_key = (
+            row["category_wide_gabor_count_pattern"],
+            row["critical_shape_gabor_count_pattern"],
+        )
+        groups.setdefault(config_key, []).append(row["painter"])
+
+    configuration_rows = []
+    for config_key, painters in sorted(groups.items(), key=lambda item: -len(item[1])):
+        category_pattern, critical_pattern = config_key
+        configuration_rows.append({
+            "trial_count": len(painters),
+            "category_wide_gabor_count_pattern": category_pattern,
+            "critical_shape_gabor_count_pattern": critical_pattern,
+            "painters": ";".join(painters),
+        })
+    return configuration_rows
+
+
+def print_configuration_summary(configuration_rows, total_trials):
+    print(f"\nStatistical configurations ({len(configuration_rows)} distinct, {total_trials} trials total):")
+    for row in configuration_rows:
+        print(
+            f"  {row['trial_count']} trial(s) -- "
+            f"category-wide pattern=({row['category_wide_gabor_count_pattern']}), "
+            f"critical-shape pattern=({row['critical_shape_gabor_count_pattern']}) "
+            f"[{row['painters']}]"
+        )
 
 
 def main():
@@ -697,6 +858,7 @@ def main():
     single_category_rows = draw_all_single_category_boards(example_rows)
     trial_rows = generate_master_trial_list(example_rows)
     summary_rows = summarize_examples(example_rows)
+    configuration_rows = summarize_statistical_configurations(summary_rows)
 
     # QA/debug files only — not read by the live experiment (experiment.js
     # only reads master_trial_list.csv). Kept separate so it's obvious at a
@@ -709,6 +871,7 @@ def main():
     write_csv(reference_dir / "proportion_example_list.csv", placed_rows)
     write_csv(reference_dir / "proportion_single_category_example_list.csv", single_category_rows)
     write_csv(reference_dir / "proportion_design_summary.csv", summary_rows)
+    write_csv(reference_dir / "statistical_configuration_summary.csv", configuration_rows)
 
     write_csv(ROOT / "master_trial_list.csv", trial_rows)
 
@@ -719,6 +882,9 @@ def main():
     print(reference_dir / "proportion_example_list.csv")
     print(reference_dir / "proportion_single_category_example_list.csv")
     print(reference_dir / "proportion_design_summary.csv")
+    print(reference_dir / "statistical_configuration_summary.csv")
+
+    print_configuration_summary(configuration_rows, total_trials=len(summary_rows))
 
 
 if __name__ == "__main__":
