@@ -555,10 +555,11 @@ function createExampleBoard(row) {
 }
 
 // Fixed column order for the tidy induction CSV — every column from the
-// master trial list, plus the participant's actual choice.
+// master trial list, plus the participant's actual choice. trial_type is
+// required for OSF to accept the data (same fix as FIT/IRQ).
 function inductionCSVColumns(itemKeys) {
   return [
-    "subjCode", "trial_id", "painter", "critical_shape",
+    "subjCode", "trial_type", "trial_id", "painter", "critical_shape",
     "category_dominant_gabor", "critical_shape_dominant_gabor",
     "target_probe_outline", "category_induction_gabor", "feature_feature_gabor",
     ...itemKeys,
@@ -746,6 +747,7 @@ function buildInductionTimeline(shuffledTrials, exampleRow) {
       data: Object.assign({}, row, {
         inductionsave: true,
         subjCode: participantId,
+        trial_type: "induction",
         left_option_image: options[0].image,
         left_option_strategy: options[0].strategy,
         right_option_image: options[1].image,
