@@ -739,7 +739,6 @@ def generate_master_trial_list(example_rows):
         }
         for item_number, item_image in enumerate(item_images, start=1):
             row[f"item{item_number}_name"] = item_image
-        row["question_text"] = f"This new painting belongs to {painter}. What could the inside look like most likely?"
 
         trial_rows.append(row)
 

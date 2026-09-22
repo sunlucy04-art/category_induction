@@ -549,7 +549,7 @@ function createExampleBoard(row) {
     .join("");
 
   return `
-    <div class="example-board-title">${row.painter}</div>
+    <div class="example-board-title">${row.painter} has created the following paintings:</div>
     <div class="example-board">${imagesHTML}</div>
   `;
 }
@@ -562,7 +562,6 @@ function inductionCSVColumns(itemKeys) {
     "category_dominant_gabor", "critical_shape_dominant_gabor",
     "target_probe_outline", "category_induction_gabor", "feature_feature_gabor",
     ...itemKeys,
-    "question_text",
     "left_option_image", "left_option_strategy",
     "right_option_image", "right_option_strategy",
     "participant_choice", "choice_strategy", "selected_side", "rt",
@@ -579,11 +578,74 @@ function buildInductionCleanCSV(itemKeys) {
   return Papa.unparse(rows);
 }
 
-function buildInductionTimeline(shuffledTrials) {
+// Builds the multi-page, click-through instructions, illustrated with the
+// real images from instructions_example.csv (one worked example, walked
+// through piece by piece). Editing that CSV to point at a different trial
+// changes the example without touching this code.
+function buildIllustratedInstructions(exampleRow) {
+  return {
+    type: jsPsychInstructions,
+    pages: [
+      `
+        <div class="instructions-block">
+          <h2>Welcome</h2>
+          <p>Welcome!</p>
+          <p>In this experiment, you will explore paintings created by different painters.</p>
+          <p>You will see examples of their previous artwork and will be asked to infer something about a brand new painting created by each painter.</p>
+          <p>Click "Next" to see exactly what that will look like.</p>
+        </div>
+      `,
+      `
+        <div class="instructions-block">
+          <p>Each painter has created many paintings in the past.</p>
+          <p>At the start of each question, you will see a sample of one painter's previous paintings — for example:</p>
+          ${createExampleBoard(exampleRow)}
+          <p>These are only a small sample of that painter's work, and a different random sample is shown for every question.</p>
+          <p>Click "Next" to continue.</p>
+        </div>
+      `,
+      `
+        <div class="instructions-block">
+          <p>Next, you'll be told that the painter has created a brand new painting, and shown its outline — for example:</p>
+          <p>Now <b>${exampleRow.painter}</b> has created a NEW painting:</p>
+          <img class="new-painting" src="${exampleRow.target_probe_outline}">
+          <p>The inside of this new painting is left blank — that's what you'll be asked to fill in.</p>
+          <p>Click "Next" to continue.</p>
+        </div>
+      `,
+      `
+        <div class="instructions-block">
+          <p>You will then choose which pattern you think best completes the painting, from two options like these:</p>
+          <div style="display:flex; justify-content:center; gap:24px; margin:16px 0;">
+            <img class="choice-img" src="${exampleRow.category_induction_gabor}">
+            <img class="choice-img" src="${exampleRow.feature_feature_gabor}">
+          </div>
+          <p>Which option appears on the left or right changes randomly each time — just pick whichever pattern you think fits best.</p>
+          <p>Click "Next" to continue.</p>
+        </div>
+      `,
+      `
+        <div class="instructions-block">
+          <h2>Ready to begin</h2>
+          <p>That's the whole task: look at a painter's previous paintings, see the outline of their newest painting, and choose the pattern you think fits best.</p>
+          <p>Click "Next" to start.</p>
+        </div>
+      `,
+    ],
+    show_clickable_nav: true,
+    key_forward: "ArrowRight",
+    key_backward: "ArrowLeft",
+    data: { screen: "induction_instructions" },
+  };
+}
+
+function buildInductionTimeline(shuffledTrials, exampleRow) {
   const timeline = [];
   const itemKeys = shuffledTrials.length ? getItemImageKeys(shuffledTrials[0]) : [];
 
-  // Preload every image referenced anywhere in the trial list.
+  // Preload every image referenced anywhere in the trial list, plus the
+  // illustrated-instructions example (which may not otherwise appear in
+  // this participant's shuffled trials).
   const images = [];
   shuffledTrials.forEach(function(row) {
     images.push(row.target_probe_outline);
@@ -591,54 +653,19 @@ function buildInductionTimeline(shuffledTrials) {
     images.push(row.feature_feature_gabor);
     getItemImages(row).forEach(function(image) { images.push(image); });
   });
+  if (exampleRow) {
+    images.push(exampleRow.target_probe_outline);
+    images.push(exampleRow.category_induction_gabor);
+    images.push(exampleRow.feature_feature_gabor);
+    getItemImages(exampleRow).forEach(function(image) { images.push(image); });
+  }
 
   timeline.push({
     type: jsPsychPreload,
     images: images
   });
 
-  // Page 1: Welcome.
-  timeline.push({
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: `
-      <div class="page">
-        <h2>Welcome</h2>
-        <p>Welcome!</p>
-        <p>In this experiment, you will explore paintings created by different painters.</p>
-        <p>You will see examples of their previous artwork and will be asked to infer something about a brand new paintings created by each painter.</p>
-        <p>Press any key to begin.</p>
-      </div>
-    `
-  });
-
-  // Page 2: Examples.
-  timeline.push({
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: `
-      <div class="page">
-        <h2>Examples</h2>
-        <p>Each painter has created many paintings in the past.</p>
-        <p>You will see some randomly selected examples from that painter's previous artwork.</p>
-        <p>These examples are only a small sample of each painter's work.</p>
-        <p>You may refer to these examples at any time during the experiment.</p>
-        <p>Press any key to continue.</p>
-      </div>
-    `
-  });
-
-  // Page 3: Task.
-  timeline.push({
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: `
-      <div class="page">
-        <h2>Task</h2>
-        <p>You will now see a new paintings created by these artist.</p>
-        <p>Each painting will have one missing part.</p>
-        <p>Your task is to choose the option that best completes the painting. Remember, you are filling in a NEW painting the artist is creating.</p>
-        <p>Press any key to start.</p>
-      </div>
-    `
-  });
+  timeline.push(buildIllustratedInstructions(exampleRow));
 
   // Make one clickable trial from each row in the shuffled trial list.
   shuffledTrials.forEach(function(row) {
@@ -658,10 +685,10 @@ function buildInductionTimeline(shuffledTrials) {
         <div class="page trial-page">
           ${createExampleBoard(row)}
 
-          <p>This new painting belongs to <b>${row.painter}</b>.</p>
+          <p>Now <b>${row.painter}</b> has created a NEW painting:</p>
           <img class="new-painting" src="${row.target_probe_outline}">
 
-          <p>What could the inside look like most likely?</p>
+          <p>What do you think the inside of this painting will look like?</p>
         </div>
       `,
 
@@ -796,7 +823,11 @@ async function runExperiment() {
     document.body.appendChild(banner);
   }
 
-  const trialList = await readCSV(csvFile);
+  const [trialList, exampleRows] = await Promise.all([
+    readCSV(csvFile),
+    readCSV("instructions_example.csv"),
+  ]);
+  const exampleRow = exampleRows[0];
 
   // A fresh, independent trial order for this participant.
   let shuffledTrials = jsPsych.randomization.shuffle(trialList);
@@ -805,7 +836,7 @@ async function runExperiment() {
   }
 
   const timeline = [];
-  timeline.push(...buildInductionTimeline(shuffledTrials));
+  timeline.push(...buildInductionTimeline(shuffledTrials, exampleRow));
 
   // FIT and IRQ questionnaires: always run in full, whether or not demo mode
   // is on, each saving to its own "<subjCode>_FIT.csv" / "<subjCode>_IRQ.csv"
