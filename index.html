@@ -12,6 +12,14 @@
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.1.0"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0"></script>
   <script src="https://unpkg.com/@jspsych/plugin-preload@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-instructions@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-text@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@2.2.1"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-multi-select@2.1.1"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-likert@2.2.0"></script>
+
+  <!-- DataPipe plugin (jsPsych-contrib): saves data straight to OSF -->
+  <script src="https://unpkg.com/@jspsych-contrib/plugin-pipe@0.6.0"></script>
 
   <!-- PapaParse reads the CSV trial list -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
@@ -96,6 +104,117 @@
 
     .jspsych-btn:hover {
       background: #f2f2f2;
+    }
+
+    .instructions-block {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 24px;
+      box-sizing: border-box;
+      text-align: center;
+      font-size: 20px;
+      line-height: 1.6;
+    }
+
+    .fit-prompt-display {
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      max-width: 800px;
+      margin: 80px auto 0;
+      line-height: 1.5;
+    }
+
+    .fit-example-caption {
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      max-width: 700px;
+      margin: 0 auto 16px;
+    }
+
+    .fit-example-image {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Setup pop-up shown before the experiment starts (subject code, demo
+       mode, questionnaire order) */
+    #param-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+    }
+
+    #param-overlay .param-box {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 360px;
+      max-width: 90vw;
+      padding: 28px 32px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    #param-overlay h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    #param-overlay label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-weight: bold;
+    }
+
+    #param-overlay label.param-check {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      font-weight: normal;
+    }
+
+    #param-overlay input[type="text"],
+    #param-overlay select {
+      font-size: 16px;
+      padding: 8px;
+    }
+
+    #param-overlay button {
+      margin-top: 4px;
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #param-overlay .param-error {
+      color: #b30000;
+      font-size: 14px;
+      min-height: 1em;
+    }
+
+    #demo-mode-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      background: #b30000;
+      color: #fff;
+      font: 14px/1.4 Arial, Helvetica, sans-serif;
+      text-align: center;
+      padding: 4px 8px;
     }
   </style>
 
