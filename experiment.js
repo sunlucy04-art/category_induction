@@ -583,51 +583,90 @@ function buildInductionCleanCSV(itemKeys) {
 // through piece by piece). Editing that CSV to point at a different trial
 // changes the example without touching this code.
 function buildIllustratedInstructions(exampleRow) {
-  return {
+  const introPages = {
     type: jsPsychInstructions,
     pages: [
       `
         <div class="instructions-block">
           <h2>Welcome</h2>
-          <p>Welcome!</p>
           <p>In this experiment, you will explore paintings created by different painters.</p>
-          <p>You will see examples of their previous artwork and will be asked to infer something about a brand new painting created by each painter.</p>
-          <p>Click "Next" to see exactly what that will look like.</p>
+          <p>You will see examples of their previous artwork and will be asked to infer something about a new painting created by each painter.</p>
+          <p>Click "Next" to see an example.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>Each painter has created many paintings in the past.</p>
-          <p>At the start of each question, you will see a sample of one painter's previous paintings — for example:</p>
+          <p>At the start of each question, you will see a sample of a painter's previous paintings — for example:</p>
           ${createExampleBoard(exampleRow)}
-          <p>These are only a small sample of that painter's work, and a different random sample is shown for every question.</p>
+          <p> <strong>These are only a small sample of that painter's work.</strong></p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>Next, you'll be told that the painter has created a brand new painting, and shown its outline — for example:</p>
+          <p>Next, you'll be given the outline of a new painting the artist has created, for example:</p>
           <p>Now <b>${exampleRow.painter}</b> has created a NEW painting:</p>
           <img class="new-painting" src="${exampleRow.target_probe_outline}">
-          <p>The inside of this new painting is left blank — that's what you'll be asked to fill in.</p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>You will then choose which pattern you think best completes the painting, from two options like these:</p>
+          <p>You will choose the best option for how you think the painter will complete the painting</p>
+          <p>How will Aurora complete the painting?</p>
           <div style="display:flex; justify-content:center; gap:24px; margin:16px 0;">
             <img class="choice-img" src="${exampleRow.category_induction_gabor}">
             <img class="choice-img" src="${exampleRow.feature_feature_gabor}">
           </div>
-          <p>Which option appears on the left or right changes randomly each time — just pick whichever pattern you think fits best.</p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
+    ],
+    show_clickable_nav: true,
+    key_forward: "ArrowRight",
+    key_backward: "ArrowLeft",
+    data: { screen: "induction_instructions" },
+  };
+
+  // "This is what the entire trial will look like" — a real, clickable demo
+  // of the example trial, laid out exactly like the trials that follow.
+  // Not saved as induction data (no inductionsave tag), just a rehearsal.
+  const demoOptions = jsPsych.randomization.shuffle([
+    { image: exampleRow.category_induction_gabor, strategy: "category" },
+    { image: exampleRow.feature_feature_gabor, strategy: "feature-feature" }
+  ]);
+
+  const fullTrialDemo = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `
+      <div class="page trial-page">
+        <p><strong>This is what the entire trial will look like:</strong></p>
+
+        ${createExampleBoard(exampleRow)}
+
+        <p><b>${exampleRow.painter}</b> has created a NEW painting:</p>
+        <img class="new-painting" src="${exampleRow.target_probe_outline}">
+
+        <p>How will <b>${exampleRow.painter}</b> complete the painting?</p>
+      </div>
+    `,
+    choices: demoOptions.map(function(option) { return option.image; }),
+    button_html: function(choice) {
+      return `<button class="jspsych-btn"><img class="choice-img" src="${choice}"></button>`;
+    },
+    button_layout: "grid",
+    grid_rows: 1,
+    grid_columns: 2,
+    data: { screen: "induction_example_trial" },
+  };
+
+  const closingPage = {
+    type: jsPsychInstructions,
+    pages: [
       `
         <div class="instructions-block">
           <h2>Ready to begin</h2>
-          <p>That's the whole task: look at a painter's previous paintings, see the outline of their newest painting, and choose the pattern you think fits best.</p>
+          <p>Take as much time as you need to think about how the painter will finish their painting. Remember, every time you are shown an outline of a new painting, this is a NEW painting. </p>
           <p>Click "Next" to start.</p>
         </div>
       `,
@@ -637,6 +676,8 @@ function buildIllustratedInstructions(exampleRow) {
     key_backward: "ArrowLeft",
     data: { screen: "induction_instructions" },
   };
+
+  return [introPages, fullTrialDemo, closingPage];
 }
 
 function buildInductionTimeline(shuffledTrials, exampleRow) {
@@ -665,7 +706,7 @@ function buildInductionTimeline(shuffledTrials, exampleRow) {
     images: images
   });
 
-  timeline.push(buildIllustratedInstructions(exampleRow));
+  timeline.push(...buildIllustratedInstructions(exampleRow));
 
   // Make one clickable trial from each row in the shuffled trial list.
   shuffledTrials.forEach(function(row) {
@@ -685,10 +726,10 @@ function buildInductionTimeline(shuffledTrials, exampleRow) {
         <div class="page trial-page">
           ${createExampleBoard(row)}
 
-          <p>Now <b>${row.painter}</b> has created a NEW painting:</p>
+          <p><b>${row.painter}</b> has created a NEW painting:</p>
           <img class="new-painting" src="${row.target_probe_outline}">
 
-          <p>What do you think the inside of this painting will look like?</p>
+          <p>How will <b>${row.painter}</b> complete the painting? </p>
         </div>
       `,
 
