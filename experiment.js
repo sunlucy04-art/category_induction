@@ -132,9 +132,10 @@ const FIT_OTHER_EXPERIENCE_OPTIONS = [
   "None of the above",
 ];
 
-// Fixed column order for the tidy FIT CSV, one row per prompt.
+// Fixed column order for the tidy FIT CSV, one row per prompt. trial_type is
+// required for OSF to accept the data (same fix as in Amelia's code).
 const FIT_CSV_COLUMNS = [
-  "subjCode", "block", "block_label", "prompt_index", "prompt",
+  "subjCode", "trial_type", "block", "block_label", "prompt_index", "prompt",
   "lang_english", "lang_other", "visual", "concept", "eyes",
   "auditory", "orthographic", "artic_outloud", "artic_real", "artic_imagined", "pure_lexical",
   "other_experiences", "other_experiences_text",
@@ -241,6 +242,7 @@ function buildFITCleanCSV() {
     if (!byIndex[t.fit_prompt_index]) {
       byIndex[t.fit_prompt_index] = {
         subjCode: t.subjCode,
+        trial_type: "FIT",
         block: t.fit_block,
         block_label: t.fit_block_label,
         prompt_index: t.fit_prompt_index,
@@ -367,9 +369,11 @@ const IRQ_ITEMS = [
   { name: "catch2", text: "Five minus two is three" },
 ];
 
-// Fixed CSV column order: subjCode + one column per IRQ item, in the item's
-// canonical (non-randomized) order, regardless of the order it was presented in.
-const IRQ_CSV_COLUMNS = ["subjCode", ...IRQ_ITEMS.map(function(q) { return q.name; })];
+// Fixed CSV column order: subjCode + trial_type + one column per IRQ item,
+// in the item's canonical (non-randomized) order, regardless of the order
+// it was presented in. trial_type is required for OSF to accept the data
+// (same fix as in Amelia's code).
+const IRQ_CSV_COLUMNS = ["subjCode", "trial_type", ...IRQ_ITEMS.map(function(q) { return q.name; })];
 
 function buildIRQCleanCSV() {
   const trial = jsPsych.data.get().filter({ irqsave: true }).last(1).trials[0];
@@ -377,6 +381,8 @@ function buildIRQCleanCSV() {
   IRQ_CSV_COLUMNS.forEach(function(c) {
     if (c === "subjCode") {
       row[c] = trial ? trial.subjCode : participantId;
+    } else if (c === "trial_type") {
+      row[c] = "IRQ";
     } else {
       row[c] = trial && trial.response && trial.response[c] !== undefined ? trial.response[c] : "";
     }
