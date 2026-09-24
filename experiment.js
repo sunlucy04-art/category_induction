@@ -559,7 +559,7 @@ function createExampleBoard(row) {
 // required for OSF to accept the data (same fix as FIT/IRQ).
 function inductionCSVColumns(itemKeys) {
   return [
-    "subjCode", "trial_type", "trial_id", "painter", "critical_shape",
+    "subjCode", "trial_type", "trial_id", "condition", "painter", "critical_shape",
     "category_dominant_gabor", "critical_shape_dominant_gabor",
     "target_probe_outline", "category_induction_gabor", "feature_feature_gabor",
     ...itemKeys,

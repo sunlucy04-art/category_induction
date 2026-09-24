@@ -10,12 +10,24 @@ The easiest option is to upload the whole folder contents together. The main web
 
 - `index.html`: the experiment page GitHub Pages will open automatically. Only loads the jsPsych/plugin libraries, the page styling, and `experiment.js`.
 - `experiment.js`: all of the actual experiment logic — reads `master_trial_list.csv`, shuffles the trial order (a fresh order per participant), builds each trial's example board/probe/choices, randomizes which side each choice lands on, and records responses.
-- `master_trial_list.csv`: the trial list. One row per trial (25 rows). Every image the trial needs is already spelled out on that row: the target outline, the two gabor choice images, and all 8 evidence item images (`item1_name`...`item8_name`) — nothing else needs to be cross-referenced at runtime.
-- `generate_trials.py`: the code that generates `master_trial_list.csv` (and the debug/QA files below) from the category-design rules. Keep this so the design can be changed later.
+- `master_trial_list.csv`: the trial list — 50 rows, one per trial (25 high-nameability + 25 low-nameability, shuffled together). Every image the trial needs is already spelled out on that row: the target outline, the two choice images, and all 8 evidence item images (`item1_name`...`item8_name`) — nothing else needs to be cross-referenced at runtime. A `condition` column marks each trial as `high_nameability` or `low_nameability`.
+- `instructions_example.csv`: a single row (a literal copy of one trial from `master_trial_list.csv`) used to illustrate the instructions with real images. Editing this file swaps the worked example without touching any code.
+- `generate_trials.py`: generates one condition's trial list at a time (`master_trial_list_<run_name>.csv`) from the category-design rules. Keep this so the design can be changed later.
+- `merge_trial_lists.py`: combines the per-condition trial lists into the final, shuffled `master_trial_list.csv` (and refreshes `instructions_example.csv`). Run this *after* generating every condition.
+- `prepare_nameability_stimuli.py`: one-time setup that copies the selected shape outlines and color swatches into each condition's `outlines_dir`/`fill_dir`, and generates the composite "shape filled with color" images by flood-filling each outline's interior. Only needs re-running if the underlying shape/color source files change.
 
-## `experiment_design_reference/` (not read by the live experiment)
+## Generating a New Design (two conditions -> one merged trial list)
 
-These are generated for sanity-checking the design by eye, but `index.html`/`experiment.js` do not read them — don't upload this folder as part of the experiment itself:
+1. If the shape/color source files changed, run `prepare_nameability_stimuli.py` first.
+2. In `generate_trials.py`, set `SETTINGS["run_name"]`, `["outlines_dir"]`, `["fill_dir"]`, `["shapes_dir"]`, and `["painter_name_offset"]` for the **high nameability** condition (currently: `run_name="high_nameability"`, dirs under `images/high_nameability/`, `painter_name_offset=0`), then run it.
+3. Change those same settings to the **low nameability** condition (`run_name="low_nameability"`, dirs under `images/low_nameability/`, `painter_name_offset=25`), then run it again.
+4. Run `merge_trial_lists.py`. This reads both `master_trial_list_high_nameability.csv` and `master_trial_list_low_nameability.csv`, shuffles them together, and writes the final `master_trial_list.csv` + `instructions_example.csv`.
+
+`painter_name_offset` matters because every painter name across *both* conditions has to be unique in the merged experiment — `PAINTER_NAMES` has 50 names for exactly this reason (0-24 for one condition, 25-49 for the other).
+
+## `experiment_design_reference_<run_name>/` (not read by the live experiment)
+
+Generated per condition, for sanity-checking that condition's design by eye — `index.html`/`experiment.js` do not read these, and neither does `merge_trial_lists.py`. Don't upload these folders as part of the experiment itself:
 
 - `proportion_design_summary.csv`: a per-category summary of the statistical makeup (does the category-wide dominant fill and the critical shape's own dominant fill actually show up as often as intended) for checking and explaining the design.
 - `proportion_example_board.png` / `proportion_example_board_annotated.png`: a rendered board showing every category's examples.
@@ -23,22 +35,22 @@ These are generated for sanity-checking the design by eye, but `index.html`/`exp
 
 ## Required Image Folders
 
-These folders must stay in the same structure. `generate_trials.py` discovers shapes and fills straight from what's in these folders (nothing is hard-coded), so a different stimulus set just needs its own files dropped into folders with this structure — point `SETTINGS["outlines_dir"]`/`"fill_dir"`/`"shapes_dir"` at them:
+`generate_trials.py` discovers shapes and fills straight from whatever's in these folders (nothing is hard-coded), so pointing `SETTINGS["outlines_dir"]`/`"fill_dir"`/`"shapes_dir"` at a folder with this structure is all it takes to generate a condition/stimulus set:
 
-- `images/shape_outines/`: one outline image per shape, named `{shape_id}.png`.
-- `images/gabor_frequencies/`: one image per fill (gabor pattern, color, etc.), named `{fill_id}.png`.
-- `images/all_shapes/`: one composite image per shape x fill combination, named `{shape_id}_{fill_id}.png`.
+- `images/high_nameability/shape_outlines/` and `images/low_nameability/shape_outlines/`: one outline image per shape, named `{shape_id}.png`.
+- `images/high_nameability/colors/` and `images/low_nameability/colors/`: one image per fill (color swatch), named `{fill_id}.png`.
+- `images/high_nameability/all_shapes/` and `images/low_nameability/all_shapes/`: one composite image per shape x fill combination, named `{shape_id}_{fill_id}.png` — generated by `prepare_nameability_stimuli.py`, not hand-made.
 
 The CSV points to these individual images by their exact filenames. The experiment combines them on the page.
 
 ## Important
 
-Do not upload or rely on anything in `past_files/`. That folder holds earlier, superseded versions (old trial-list formats, an earlier draft experiment page, old placeholder SVGs) kept only for reference — nothing in the current pipeline reads from it.
+Do not upload or rely on anything in `past_files/`. That folder holds earlier, superseded versions (old trial-list formats, an earlier draft experiment page, old placeholder SVGs) kept only for reference — nothing in the current pipeline reads from it. The same goes for `images/all_shapes_round1/` and `images/shape_outines/noun_shapes/` (the previous, gabor-based stimulus set) — superseded, not part of the current design.
 
 ## Quick Check
 
-- 25 trials in `master_trial_list.csv`
-- 200 individual example rows in `experiment_design_reference/proportion_single_category_example_list.csv` (debug only)
-- 44 image files used by the CSVs (32 composite shape+fill images, 8 outlines, 4 fill patches)
+- 50 trials in `master_trial_list.csv` (25 per condition)
+- 25 high-nameability shape x color example rows in `experiment_design_reference_high_nameability/proportion_single_category_example_list.csv`, and 25 low-nameability ones in the `_low_nameability` version (debug only)
+- 64 composite images per condition (8 shapes x 4 colors), plus 8 outlines and 4 color swatches per condition
 
-If you change the design later, rerun `generate_trials.py`, then upload the new CSV files and any new image files.
+If you change the design later, redo the "Generating a New Design" steps above, then upload the new CSV files and any new image files.

@@ -40,6 +40,21 @@ SETTINGS = {
     # Change this number if you want more or fewer categories/trials.
     "number_of_categories": 25,
 
+    # Which slice of PAINTER_NAMES this run uses (painter names 0-24, then
+    # 25-49, ...). Only matters when you're generating more than one
+    # condition that will later be merged into a single experiment (e.g.
+    # high vs. low nameability) — set this to a different offset for each
+    # run so no painter name gets reused across conditions.
+    "painter_name_offset": 25,
+
+    # A short name for this run, used to name its output files
+    # (master_trial_list_<run_name>.csv, experiment_design_reference_<run_name>/)
+    # so multiple condition runs don't overwrite each other. When you're
+    # generating a single condition, this can be anything — the file merge
+    # step is what produces the actual master_trial_list.csv the experiment
+    # reads.
+    "run_name": "low_nameability",
+
     # ------------------------------------------------------------------
     # Stimulus files. Point these at a different stimulus set's folders to
     # reuse this whole generator on a completely different set of shapes and
@@ -50,16 +65,16 @@ SETTINGS = {
     #   - fill_dir has one file per fill:                 "{fill_id}.png"
     #   - shapes_dir has one file per shape x fill combo:  "{shape_id}_{fill_id}.png"
     # ------------------------------------------------------------------
-    "outlines_dir": "images/shape_outines",
-    "fill_dir": "images/gabor_frequencies",
-    "shapes_dir": "images/all_shapes",
+    "outlines_dir": "images/low_nameability/shape_outlines",
+    "fill_dir": "images/low_nameability/colors",
+    "shapes_dir": "images/low_nameability/all_shapes",
 
     # Whether this script should synthesize the fill images itself (sine-
     # wave gabor gratings) before reading fill_dir. Set this to False for a
     # stimulus set where fill_dir is already populated with your own fill
     # images (e.g. colors, other textures) — the script will just use
     # whatever's already sitting there and skip synthesis entirely.
-    "synthesize_gabor_fills": True,
+    "synthesize_gabor_fills": False,
 
     # Only used when synthesize_gabor_fills is True. Each key becomes a fill
     # id (i.e. the filename gabor1.png, gabor2.png, ... in fill_dir); each
@@ -163,6 +178,16 @@ PAINTER_NAMES = [
     "Lily", "Ella", "Chloe", "Victoria", "Aria",
     "Scarlett", "Layla", "Nora", "Riley", "Zoey",
     "Hannah", "Luna", "Stella", "Aurora", "Leah",
+    # Second block of 25, for when generating a second condition (e.g. a
+    # separate high/low nameability run via painter_name_offset below) that
+    # needs to end up in the same merged experiment — every painter name
+    # across BOTH runs needs to stay unique, or the participant would see
+    # the same name used for two unrelated painters.
+    "Abigail", "Emma", "Madison", "Elizabeth", "Avery",
+    "Sofia", "Camila", "Penelope", "Violet", "Mila",
+    "Nova", "Ivy", "Eleanor", "Hazel", "Willow",
+    "Ruby", "Naomi", "Josephine", "Audrey", "Brooklyn",
+    "Bella", "Claire", "Skylar", "Lucy", "Paisley",
 ]
 
 
@@ -267,7 +292,9 @@ def make_random_category_plans():
     used_combinations = set()
     category_plans = []
 
-    for category_index, painter in enumerate(PAINTER_NAMES[:SETTINGS["number_of_categories"]]):
+    painter_offset = SETTINGS["painter_name_offset"]
+    painter_slice = PAINTER_NAMES[painter_offset:painter_offset + SETTINGS["number_of_categories"]]
+    for category_index, painter in enumerate(painter_slice):
         unused = [
             combo for combo in all_shape_combinations
             if (combo[0], tuple(sorted(combo[1]))) not in used_combinations
@@ -862,7 +889,10 @@ def main():
     # QA/debug files only — not read by the live experiment (experiment.js
     # only reads master_trial_list.csv). Kept separate so it's obvious at a
     # glance what does and doesn't need to be uploaded with the experiment.
-    reference_dir = ROOT / "experiment_design_reference"
+    # Named per run_name so multiple condition runs don't overwrite each
+    # other's QA files.
+    run_name = SETTINGS["run_name"]
+    reference_dir = ROOT / f"experiment_design_reference_{run_name}"
     reference_dir.mkdir(parents=True, exist_ok=True)
 
     clean_board.save(reference_dir / "proportion_example_board.png")
@@ -872,10 +902,14 @@ def main():
     write_csv(reference_dir / "proportion_design_summary.csv", summary_rows)
     write_csv(reference_dir / "statistical_configuration_summary.csv", configuration_rows)
 
-    write_csv(ROOT / "master_trial_list.csv", trial_rows)
+    # This is an intermediate, per-condition file — NOT what the live
+    # experiment reads. Run merge_trial_lists.py after generating every
+    # condition to build the final, shuffled master_trial_list.csv.
+    trial_list_path = ROOT / f"master_trial_list_{run_name}.csv"
+    write_csv(trial_list_path, trial_rows)
 
     print("Generated:")
-    print(ROOT / "master_trial_list.csv")
+    print(trial_list_path)
     print(reference_dir / "proportion_example_board.png")
     print(reference_dir / "proportion_example_board_annotated.png")
     print(reference_dir / "proportion_example_list.csv")
