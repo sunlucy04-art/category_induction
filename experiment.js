@@ -614,7 +614,7 @@ function buildIllustratedInstructions(exampleRow) {
       `
         <div class="instructions-block">
           <p>You will choose the best option for how you think the painter will complete the painting</p>
-          <p>How will Aurora complete the painting?</p>
+          <p>How will Lucy complete the painting?</p>
           <div style="display:flex; justify-content:center; gap:24px; margin:16px 0;">
             <img class="choice-img" src="${exampleRow.category_induction_gabor}">
             <img class="choice-img" src="${exampleRow.feature_feature_gabor}">
@@ -667,7 +667,7 @@ function buildIllustratedInstructions(exampleRow) {
       `
         <div class="instructions-block">
           <h2>Ready to begin</h2>
-          <p>Take as much time as you need to think about how the painter will finish their painting. Remember, every time you are shown an outline of a new painting, this is a NEW painting. </p>
+          <p>Take as much time as you need to think about how the painter will finish their painting. Remember, every time you are shown an outline of a painting, this is a NEW painting created by the artist. </p>
           <p>Click "Next" to start.</p>
         </div>
       `,
