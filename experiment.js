@@ -549,7 +549,8 @@ function createExampleBoard(row) {
     .join("");
 
   return `
-    <div class="example-board-title">${row.painter} has created the following paintings:</div>
+    <div class="example-board-title">${row.painter} has made these drawings:</div>
+    <div class="example-board-note">These are all separate drawings, not a collage, and represent a small sample of ${row.painter}'s drawings.</div>
     <div class="example-board">${imagesHTML}</div>
   `;
 }
@@ -590,31 +591,30 @@ function buildIllustratedInstructions(exampleRow) {
       `
         <div class="instructions-block">
           <h2>Welcome</h2>
-          <p>In this experiment, you will explore paintings created by different painters.</p>
-          <p>You will see examples of their previous artwork and will be asked to infer something about a new painting created by each painter.</p>
+          <p>In this experiment, you will see "drawings" (differently colored simple shapes) by different artists.</p>
+          <p>You will first see examples of their previous drawings and will then be asked to make a prediction about a new drawing created by the same artist.</p>
           <p>Click "Next" to see an example.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>At the start of each question, you will see a sample of a painter's previous paintings — for example:</p>
+          <p>At the start of each question, you will see some of the artist's previous drawings, for example:</p>
           ${createExampleBoard(exampleRow)}
-          <p> <strong>These are only a small sample of that painter's work.</strong></p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>Next, you'll be given the outline of a new painting the artist has created, for example:</p>
-          <p>Now <b>${exampleRow.painter}</b> has created a NEW painting:</p>
+          <p>Next, you'll be shown an outline of a new drawing the artist created, for example:</p>
+          <p><b>${exampleRow.painter}</b> now made this new drawing:</p>
           <img class="new-painting" src="${exampleRow.target_probe_outline}">
           <p>Click "Next" to continue.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>You will choose the best option for how you think the painter will complete the painting</p>
-          <p>How will Lucy complete the painting?</p>
+          <p>Your task is to choose the best option for how the artist will color their drawing.</p>
+          <p>How do you think <b>${exampleRow.painter}</b> will color this drawing?</p>
           <div style="display:flex; justify-content:center; gap:24px; margin:16px 0;">
             <img class="choice-img" src="${exampleRow.category_induction_gabor}">
             <img class="choice-img" src="${exampleRow.feature_feature_gabor}">
@@ -641,14 +641,14 @@ function buildIllustratedInstructions(exampleRow) {
     type: jsPsychHtmlButtonResponse,
     stimulus: `
       <div class="page trial-page">
-        <p><strong>This is what the entire trial will look like:</strong></p>
+        <p><strong>This is what the actual questions will look like:</strong></p>
 
         ${createExampleBoard(exampleRow)}
 
-        <p><b>${exampleRow.painter}</b> has created a NEW painting:</p>
+        <p><b>${exampleRow.painter}</b> now made this new drawing:</p>
         <img class="new-painting" src="${exampleRow.target_probe_outline}">
 
-        <p>How will <b>${exampleRow.painter}</b> complete the painting?</p>
+        <p>How do you think <b>${exampleRow.painter}</b> will color this drawing?</p>
       </div>
     `,
     choices: demoOptions.map(function(option) { return option.image; }),
@@ -667,7 +667,7 @@ function buildIllustratedInstructions(exampleRow) {
       `
         <div class="instructions-block">
           <h2>Ready to begin</h2>
-          <p>Take as much time as you need to think about how the painter will finish their painting. Remember, every time you are shown an outline of a painting, this is a NEW painting created by the artist. </p>
+          <p>Take as much time as you need to think about how the artist will color their drawing. Remember, every time you are shown an outline of a drawing, this is a NEW drawing created by the artist.</p>
           <p>Click "Next" to start.</p>
         </div>
       `,
@@ -727,10 +727,10 @@ function buildInductionTimeline(shuffledTrials, exampleRow) {
         <div class="page trial-page">
           ${createExampleBoard(row)}
 
-          <p><b>${row.painter}</b> has created a NEW painting:</p>
+          <p><b>${row.painter}</b> now made this new drawing:</p>
           <img class="new-painting" src="${row.target_probe_outline}">
 
-          <p>How will <b>${row.painter}</b> complete the painting? </p>
+          <p>How do you think <b>${row.painter}</b> will color this drawing?</p>
         </div>
       `,
 
