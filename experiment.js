@@ -33,7 +33,7 @@ const csvFile = "master_trial_list.csv";
 // gets uploaded to whatever OSF project that pipe is linked to. The same
 // pipe is used for all three saved files (induction/FIT/IRQ); DataPipe
 // just uploads whatever filename each save trial gives it.
-const DATA_PIPE_EXPERIMENT_ID = "NFFZ5L6ZlvsN";
+const DATA_PIPE_EXPERIMENT_ID = "xvMyuhu7p8BK";
 
 // Fill this in once you have the Qualtrics link for the final survey. Until
 // then, the experiment just ends with a thank-you message instead of
@@ -837,7 +837,20 @@ function promptForParameters(urlParams) {
   });
 }
 
+// The DataPipe extension streams every trial to DataPipe as it happens and
+// submits the full raw data as "<subjCode>_full.csv" at the end, alongside
+// the per-section save trials above. filename is a function because
+// participantId isn't known until the setup screen is submitted.
 const jsPsych = initJsPsych({
+  extensions: [
+    {
+      type: jsPsychExtensionPipe,
+      params: {
+        experiment_id: DATA_PIPE_EXPERIMENT_ID,
+        filename: () => sessionFilename("full"),
+      },
+    },
+  ],
   on_finish: function() {
     const qualtricsConfigured = QUALTRICS_URL !== "REPLACE_WITH_YOUR_QUALTRICS_LINK";
     if (qualtricsConfigured) {
