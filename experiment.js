@@ -837,20 +837,7 @@ function promptForParameters(urlParams) {
   });
 }
 
-// The DataPipe extension streams every trial to DataPipe as it happens and
-// submits the full raw data as "<subjCode>_full.csv" at the end, alongside
-// the per-section save trials above. filename is a function because
-// participantId isn't known until the setup screen is submitted.
 const jsPsych = initJsPsych({
-  extensions: [
-    {
-      type: jsPsychExtensionPipe,
-      params: {
-        experiment_id: DATA_PIPE_EXPERIMENT_ID,
-        filename: () => sessionFilename("full"),
-      },
-    },
-  ],
   on_finish: function() {
     const qualtricsConfigured = QUALTRICS_URL !== "REPLACE_WITH_YOUR_QUALTRICS_LINK";
     if (qualtricsConfigured) {
