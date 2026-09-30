@@ -2,14 +2,16 @@
   SIMPLE EXPERIMENT PROPORTION VERSION
 
   What this file does:
-  1. Shows a setup screen asking for the subject code, whether to run in
-     demo mode (2 induction trials instead of the full set), and the order
-     of the two questionnaires at the end (FIT then IRQ, or IRQ then FIT) —
-     any of these can also be pre-filled via URL params.
+  1. Shows a setup screen asking for the subject code, the random seed,
+     whether to run in demo mode (2 induction trials instead of the full
+     set), and the order of the two questionnaires at the end (0: IRQ then
+     FIT, or 1: FIT then IRQ) — any of these can also be pre-filled via URL
+     params.
   2. Reads the master trial list (one row per trial; every image filename
      it needs is already spelled out on that row, including its 8 evidence
-     items) and shuffles the trial order (a fresh, independent order per
-     participant/page load).
+     items) and shuffles the trial order. All randomization (trial order,
+     left/right choice sides, questionnaire item order) is driven by the
+     seed entered at setup, so the same seed reproduces the same order.
   3. Runs the induction task: on every trial, shows that painter's evidence
      items, then the new painting's outline, then asks the participant to
      choose which gabor pattern completes it. Which side (left/right) each
@@ -38,7 +40,7 @@ const DATA_PIPE_EXPERIMENT_ID = "xvMyuhu7p8BK";
 // Fill this in once you have the Qualtrics link for the final survey. Until
 // then, the experiment just ends with a thank-you message instead of
 // redirecting.
-const QUALTRICS_URL = "REPLACE_WITH_YOUR_QUALTRICS_LINK";
+const QUALTRICS_URL = "https://uwmadison.co1.qualtrics.com/jfe/form/SV_24r43gqIML2igfk";
 
 // ?demo=true (or the setup screen's "Demo mode" checkbox) runs only this
 // many induction trials, so the full pipeline — including every DataPipe
@@ -560,7 +562,7 @@ function createExampleBoard(row) {
 // required for OSF to accept the data (same fix as FIT/IRQ).
 function inductionCSVColumns(itemKeys) {
   return [
-    "subjCode", "trial_type", "trial_id", "condition", "painter", "critical_shape",
+    "subjCode", "random_seed", "trial_type", "trial_id", "condition", "painter", "critical_shape",
     "category_dominant_gabor", "critical_shape_dominant_gabor",
     "target_probe_outline", "category_induction_gabor", "feature_feature_gabor",
     ...itemKeys,
@@ -771,19 +773,20 @@ function buildInductionTimeline(shuffledTrials, exampleRow) {
 }
 
 // ---------------------------------------------------------------------------
-// Setup screen: subject code, demo mode, questionnaire order. Any of these
-// can be pre-filled via URL params (?subjCode=..., ?demo=true,
-// ?questionnaireOrder=fit_first|irq_first) but the researcher/participant
-// still has to confirm by pressing "Start".
+// Setup screen: subject code, random seed, demo mode, questionnaire order.
+// Any of these can be pre-filled via URL params (?subjCode=..., ?seed=...,
+// ?demo=true, ?questionnaireOrder=0|1, where 0 = IRQ then FIT and
+// 1 = FIT then IRQ) but the researcher/participant still has to confirm by
+// pressing "Start".
 // ---------------------------------------------------------------------------
 
 function promptForParameters(urlParams) {
   return new Promise(function(resolve) {
     const prefillSubj = urlParams.get("subjCode") || urlParams.get("subject") || urlParams.get("subj") || "";
     const prefillDemo = /^(1|true|yes)$/i.test((urlParams.get("demo") || "").trim());
-    const prefillOrder = /^(fit_first|irq_first)$/i.test((urlParams.get("questionnaireOrder") || "").trim())
-      ? urlParams.get("questionnaireOrder").trim().toLowerCase()
-      : "";
+    const prefillSeed = (urlParams.get("seed") || "").trim();
+    const orderParam = (urlParams.get("questionnaireOrder") || "").trim().toLowerCase();
+    const prefillOrder = { "0": "irq_first", "irq_first": "irq_first", "1": "fit_first", "fit_first": "fit_first" }[orderParam] || "";
 
     const overlay = document.createElement("div");
     overlay.id = "param-overlay";
@@ -793,11 +796,14 @@ function promptForParameters(urlParams) {
         <label>Subject code
           <input type="text" name="subjCode" required>
         </label>
+        <label>Random seed
+          <input type="text" name="seed" required>
+        </label>
         <label>Questionnaire order
           <select name="questionnaireOrder" required>
             <option value="" disabled selected hidden></option>
-            <option value="fit_first">FIT then IRQ</option>
-            <option value="irq_first">IRQ then FIT</option>
+            <option value="irq_first">0: IRQ then FIT</option>
+            <option value="fit_first">1: FIT then IRQ</option>
           </select>
         </label>
         <label class="param-check">
@@ -813,6 +819,7 @@ function promptForParameters(urlParams) {
     const form = overlay.querySelector("form");
     const errorEl = overlay.querySelector(".param-error");
     form.subjCode.value = prefillSubj;
+    form.seed.value = prefillSeed;
     form.demo.checked = prefillDemo;
     if (prefillOrder) form.questionnaireOrder.value = prefillOrder;
     form.subjCode.focus();
@@ -820,16 +827,18 @@ function promptForParameters(urlParams) {
     form.addEventListener("submit", function(event) {
       event.preventDefault();
       const subjCode = form.subjCode.value.trim();
+      const seed = form.seed.value.trim();
       const questionnaireOrder = form.questionnaireOrder.value;
-      if (!subjCode || !questionnaireOrder) {
+      if (!subjCode || !seed || !questionnaireOrder) {
         errorEl.textContent = "Please fill in all fields.";
-        (!subjCode ? form.subjCode : form.questionnaireOrder).focus();
+        (!subjCode ? form.subjCode : !seed ? form.seed : form.questionnaireOrder).focus();
         return;
       }
 
       overlay.remove();
       resolve({
         subjectID: subjCode,
+        seed: seed,
         demoMode: form.demo.checked,
         questionnaireOrder: questionnaireOrder, // "fit_first" | "irq_first"
       });
@@ -850,12 +859,17 @@ const jsPsych = initJsPsych({
 
 async function runExperiment() {
   const urlParams = new URLSearchParams(window.location.search);
-  const { subjectID, demoMode, questionnaireOrder } = await promptForParameters(urlParams);
+  const { subjectID, seed, demoMode, questionnaireOrder } = await promptForParameters(urlParams);
+
+  // Seed every jsPsych.randomization call (trial order, choice sides,
+  // questionnaire item order) so the same seed reproduces the same session.
+  jsPsych.randomization.setSeed(seed);
 
   participantId = subjectID;
   demoModeActive = demoMode;
   jsPsych.data.addProperties({
     participant_id: participantId,
+    random_seed: seed,
     questionnaire_order: questionnaireOrder,
   });
 
@@ -872,7 +886,7 @@ async function runExperiment() {
   ]);
   const exampleRow = exampleRows[0];
 
-  // A fresh, independent trial order for this participant.
+  // Trial order for this participant, determined by the setup seed.
   let shuffledTrials = jsPsych.randomization.shuffle(trialList);
   if (demoMode) {
     shuffledTrials = shuffledTrials.slice(0, DEMO_TRIAL_COUNT);
