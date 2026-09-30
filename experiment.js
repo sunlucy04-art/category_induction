@@ -562,7 +562,7 @@ function createExampleBoard(row) {
 // required for OSF to accept the data (same fix as FIT/IRQ).
 function inductionCSVColumns(itemKeys) {
   return [
-    "subjCode", "random_seed", "trial_type", "trial_id", "condition", "painter", "critical_shape",
+    "subjCode", "random_seed", "trial_type", "trial_num", "trial_id", "condition", "painter", "critical_shape",
     "category_dominant_gabor", "critical_shape_dominant_gabor",
     "target_probe_outline", "category_induction_gabor", "feature_feature_gabor",
     ...itemKeys,
@@ -720,7 +720,9 @@ function buildInductionTimeline(shuffledTrials, exampleRow) {
   timeline.push(...buildIllustratedInstructions(exampleRow));
 
   // Make one clickable trial from each row in the shuffled trial list.
-  shuffledTrials.forEach(function(row) {
+  // trial_num is the presentation order (1, 2, 3, ...); trial_id stays the
+  // master-list ID of the stimulus.
+  shuffledTrials.forEach(function(row, index) {
     // Which side (left/right) each strategy's image lands on is
     // randomized independently per trial.
     const options = jsPsych.randomization.shuffle([
@@ -758,6 +760,7 @@ function buildInductionTimeline(shuffledTrials, exampleRow) {
         inductionsave: true,
         subjCode: participantId,
         trial_type: "induction",
+        trial_num: index + 1,
         left_option_image: options[0].image,
         left_option_strategy: options[0].strategy,
         right_option_image: options[1].image,
