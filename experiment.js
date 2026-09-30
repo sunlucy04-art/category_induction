@@ -663,24 +663,32 @@ function buildIllustratedInstructions(exampleRow) {
     data: { screen: "induction_example_trial" },
   };
 
+  // Researcher gate: participants can't advance past this page on their own.
+  // Only the researcher's "q" key moves on (not shown to participants).
   const closingPage = {
-    type: jsPsychInstructions,
-    pages: [
-      `
-        <div class="instructions-block">
-          <h2>Ready to begin</h2>
-          <p>Take as much time as you need to think about how the artist will color their drawing. Remember, every time you are shown an outline of a drawing, this is a NEW drawing created by the artist.</p>
-          <p>Click "Next" to start.</p>
-        </div>
-      `,
-    ],
-    show_clickable_nav: true,
-    key_forward: "ArrowRight",
-    key_backward: "ArrowLeft",
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+      <div class="instructions-block">
+        <h2>Ready to begin</h2>
+        <p>Take as much time as you need to think about how the artist will color their drawing. Remember, every time you are shown an outline of a drawing, this is a NEW drawing created by the artist.</p>
+      </div>
+    `,
+    choices: ["q"],
     data: { screen: "induction_instructions" },
   };
 
-  return [introPages, fullTrialDemo, closingPage];
+  const startPage = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+      <div class="instructions-block">
+        <p>Press any key to begin the study.</p>
+      </div>
+    `,
+    choices: "ALL_KEYS",
+    data: { screen: "induction_start" },
+  };
+
+  return [introPages, fullTrialDemo, closingPage, startPage];
 }
 
 function buildInductionTimeline(shuffledTrials, exampleRow) {
