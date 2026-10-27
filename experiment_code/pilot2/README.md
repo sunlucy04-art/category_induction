@@ -17,7 +17,16 @@ Every participant learns exactly the demo's three categories (Lucy, Sam, Ana) wi
   - **most_frequent_shape** (3): "Which shape did Sam draw most often?", choosing from the 4 shape outlines
 - Answer options (swatches, shapes, names) are shuffled on every trial. Every drawing shown gets a small random rotation (±8°) and scale change (0.88–1.09×).
 
-**Design versions**: each condition's 8 shapes are split into 2 versions of 4, and the 5 colors are assigned to C1–C5 differently in each version. Each participant gets one version (picked by the seed). `design_versions.csv` lists which shape/color fills each role in each version.
+**Shapes** are fixed (`SHAPE_ROLES` in `generate_design.py`), with the same shape numbers in both conditions:
+
+| Role | Shape | Drawn by |
+|---|---|---|
+| S1 | shape 13 | Lucy only |
+| S2 | shape 1 | Sam only |
+| S3 | shape 10 | every kid |
+| S4 | shape 7 | Ana only |
+
+**Design versions**: each condition has 2 versions that differ only in which color plays which role (C1–C5); no color keeps its role between versions. Each participant gets one version (picked by the seed). `design_versions.csv` lists which shape/color fills each role in each version.
 
 The FIT and IRQ questionnaires, per-section DataPipe saving, and the Qualtrics redirect work the same as in pilot 1.
 
@@ -27,7 +36,7 @@ The FIT and IRQ questionnaires, per-section DataPipe saving, and the Qualtrics r
 - `training_trials.csv`, `test_trials.csv`: every design version's training drawings and test trials, with image paths spelled out. These are generated, so don't hand-edit them.
 - `design_versions.csv`: role → stimulus mapping per version (for analysis; not read by the experiment).
 - `generate_design.py`: builds the three CSVs above from the advisor's template. It runs `advisor_demo/make_test_trials.py` (unchanged) for the 13 core test trials and adds the memory trials itself.
-- `prepare_nameability_stimuli.py`: makes the filled shape images from the selected outlines and colors (same as pilot 1, now with 5 colors per condition: yellow `high_color3` and slate `low_color10` were added).
+- `prepare_nameability_stimuli.py`: makes the filled shape images from the selected outlines and colors (same as pilot 1, now with 5 colors per condition: yellow `high_color3` and slate `low_color10` were added). It also traces every outline into a vector SVG (outline and filled versions), and the experiment shows those SVGs instead of the PNGs so the drawings stay smooth when scaled and rotated. `TRACE_TOLERANCE_PX` controls how much pixel stair-stepping gets straightened out.
 - `advisor_demo/`: the advisor's demo page, template CSVs and test-trial script.
 
 ## Regenerating

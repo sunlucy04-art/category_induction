@@ -8,8 +8,15 @@ color" images by flood-filling each outline's interior — colors are solid
 fills, so these can be built automatically instead of hand-made like the
 old gabor-patch composites.
 
+It also writes vector (SVG) versions of every outline and composite, which
+the experiment shows instead of the PNGs: the source outlines are small,
+barely anti-aliased bitmaps, so they look jagged when scaled and rotated.
+Each outline is traced into a polygon (boundary trace, then straightened
+with Douglas-Peucker so pixel stair-steps become clean straight edges) and
+drawn with the same line thickness as the source.
+
 Re-run this only if the underlying shape/color source files change. It does
-not touch generate_trials.py or master_trial_list.csv.
+not touch generate_design.py or the trial lists.
 """
 
 from pathlib import Path
@@ -37,6 +44,14 @@ CONDITIONS = {
         "shapes_dir": ROOT / "images/low_nameability/all_shapes",
     },
 }
+
+
+# Max distance (in source pixels) a traced edge may stray from the pixel
+# boundary when straightened. Large enough to remove stair-steps, small
+# enough to keep real details like legs and notches.
+TRACE_TOLERANCE_PX = 2.0
+
+FOUR_CONNECTED = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
 
 
 def sample_color(swatch_path):
@@ -70,6 +85,77 @@ def composite_shape_color(outline_path, color_rgb, out_path, line_alpha_threshol
     Image.fromarray(out, "RGBA").convert("RGB").save(out_path)
 
 
+def outline_masks(outline_path, line_alpha_threshold=128):
+    # Same line/interior split as composite_shape_color.
+    array = np.array(Image.open(outline_path).convert("RGBA"))
+    is_line = array[:, :, 3] >= line_alpha_threshold
+    labels, _ = label(~is_line, structure=FOUR_CONNECTED)
+    is_interior = (~is_line) & (labels != labels[0, 0])
+    return is_line, is_interior
+
+
+def trace_boundary(mask):
+    # Moore-neighbour trace around the shape's outer boundary, returning the
+    # boundary pixels' centers as (x, y) in order.
+    ys, xs = np.nonzero(mask)
+    first = np.lexsort((xs, ys))[0]
+    start = current = (ys[first], xs[first])
+    steps = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
+    direction = 6
+    points = [start]
+    while True:
+        for k in range(8):
+            d = (direction + k) % 8
+            y, x = current[0] + steps[d][0], current[1] + steps[d][1]
+            if 0 <= y < mask.shape[0] and 0 <= x < mask.shape[1] and mask[y, x]:
+                current, direction = (y, x), (d + 6) % 8
+                break
+        if current == start and len(points) > 2:
+            break
+        points.append(current)
+    return np.array([(x + 0.5, y + 0.5) for y, x in points])
+
+
+def douglas_peucker(points, tolerance):
+    start, end = points[0], points[-1]
+    dx, dy = end - start
+    length = np.hypot(dx, dy)
+    rel = points - start
+    if length:
+        distances = np.abs(dx * rel[:, 1] - dy * rel[:, 0]) / length
+    else:
+        distances = np.hypot(rel[:, 0], rel[:, 1])
+    farthest = int(np.argmax(distances))
+    if distances[farthest] <= tolerance:
+        return np.array([start, end])
+    return np.vstack([douglas_peucker(points[:farthest + 1], tolerance)[:-1],
+                      douglas_peucker(points[farthest:], tolerance)])
+
+
+def trace_polygon(outline_path):
+    # Returns the straightened outline polygon and the source line thickness.
+    is_line, is_interior = outline_masks(outline_path)
+    boundary = trace_boundary(is_line | is_interior)
+    # A closed loop: split it at the point farthest from the start and
+    # straighten each half, so both split points are kept as corners.
+    split = int(np.argmax(np.hypot(*(boundary - boundary[0]).T)))
+    loop = np.vstack([boundary, boundary[:1]])
+    polygon = np.vstack([douglas_peucker(loop[:split + 1], TRACE_TOLERANCE_PX)[:-1],
+                         douglas_peucker(loop[split:], TRACE_TOLERANCE_PX)[:-1]])
+    perimeter = np.hypot(*np.diff(np.vstack([polygon, polygon[:1]]), axis=0).T).sum()
+    return polygon, is_line.sum() / perimeter
+
+
+def write_svg(polygon, line_width, size, fill, out_path):
+    path = "M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in polygon) + " Z"
+    width, height = size
+    out_path.write_text(
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="{width}" height="{height}">'
+        f'<path d="{path}" fill="{fill}" stroke="#000" stroke-width="{line_width:.2f}" stroke-linejoin="round"/>'
+        f'</svg>\n'
+    )
+
+
 def prepare_condition(name, config):
     print(f"--- {name} ---")
 
@@ -88,13 +174,17 @@ def prepare_condition(name, config):
 
     for shape_file in shape_files:
         shape_id = shape_file.stem
+        polygon, line_width = trace_polygon(shape_file)
+        size = Image.open(shape_file).size
+        write_svg(polygon, line_width, size, "none", config["outlines_dir"] / f"{shape_id}.svg")
         for color_file in color_files:
             fill_id = color_file.stem
             color_rgb = sample_color(color_file)
             out_path = config["shapes_dir"] / f"{shape_id}_{fill_id}.png"
             composite_shape_color(shape_file, color_rgb, out_path)
+            write_svg(polygon, line_width, size, "#%02X%02X%02X" % color_rgb, out_path.with_suffix(".svg"))
 
-    print(f"wrote {len(shape_files) * len(color_files)} composite images to {config['shapes_dir']}")
+    print(f"wrote {len(shape_files) * len(color_files)} composite images (PNG + SVG) to {config['shapes_dir']}")
 
 
 def main():

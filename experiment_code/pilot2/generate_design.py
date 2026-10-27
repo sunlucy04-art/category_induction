@@ -4,10 +4,11 @@ Generate the pilot 2 trial lists from the advisor's one-block demo design.
 The category structure (which kid draws which shape in which color) comes
 from advisor_demo/training_trials_1block.csv, written in abstract codes:
 3 kids, shapes S1-S4, colors C1-C5. Every participant sees exactly that
-structure. This script fills it with real stimuli: for each nameability
-condition it splits the condition's 8 shapes into 2 design versions of 4
-and assigns its 5 colors to the C1-C5 roles (with a different role for
-every color in the second version). Each participant gets one version.
+structure. This script fills it with real stimuli: the shape roles are
+fixed (SHAPE_ROLES below, same shape numbers in both conditions), and the
+condition's 5 colors are assigned to the C1-C5 roles in COLOR_VERSIONS
+different ways (no color keeps its role from one version to the next).
+Each participant gets one version.
 
 Test trials per version: the advisor's 13 from
 advisor_demo/make_test_trials.py, plus memory questions about every kid
@@ -37,7 +38,16 @@ MAKE_TEST_TRIALS = ROOT / "advisor_demo/make_test_trials.py"
 # Fixed so the same design is produced every time this is run.
 DESIGN_SEED = 2026
 
-SHAPES_PER_VERSION = 4
+# Which shape number fills each of the template's shape roles, in both
+# conditions (e.g. 13 -> high_shape13 / low_shape13):
+#   S1  drawn only by Lucy (mostly in C5)
+#   S2  drawn only by Sam (mostly in C5)
+#   S3  drawn by every kid, each in their usual color
+#   S4  drawn only by Ana, always in C4
+SHAPE_ROLES = {"S1": 13, "S2": 1, "S3": 10, "S4": 7}
+
+# Number of different color-to-role assignments per condition.
+COLOR_VERSIONS = 2
 
 CONDITIONS = {
     "high_nameability": "images/high_nameability",
@@ -146,26 +156,29 @@ def memory_trials(rows, first_id):
 def main():
     rng = random.Random(DESIGN_SEED)
     template = read_csv(TEMPLATE)
-    shape_codes = sorted({r["shape"] for r in template})
+    assert set(SHAPE_ROLES) == {r["shape"] for r in template}, "SHAPE_ROLES must cover the template's shapes"
     color_codes = sorted({r["color"] for r in template})
 
     training_out, test_out, design_out = [], [], []
 
     for condition, image_dir in CONDITIONS.items():
-        shapes = sorted(p.stem for p in (ROOT / image_dir / "shape_outlines").glob("*.png"))
+        prefix = condition.split("_")[0]
+        shape_of = {code: f"{prefix}_shape{n}" for code, n in SHAPE_ROLES.items()}
+        for shape_id in shape_of.values():
+            assert (ROOT / image_dir / "shape_outlines" / f"{shape_id}.png").exists(), f"missing {shape_id}"
         colors = sorted(p.stem for p in (ROOT / image_dir / "colors").glob("*.png"))
         assert len(colors) == len(color_codes), f"{condition}: need {len(color_codes)} colors, found {len(colors)}"
 
-        rng.shuffle(shapes)
         previous_colors = None
-        for v in range(len(shapes) // SHAPES_PER_VERSION):
+        for v in range(COLOR_VERSIONS):
             design = f"{condition}_v{v + 1}"
-            shape_of = dict(zip(shape_codes, shapes[v * SHAPES_PER_VERSION:(v + 1) * SHAPES_PER_VERSION]))
             previous_colors = assign_color_roles(rng, colors, previous_colors)
             color_of = dict(zip(color_codes, previous_colors))
-            outline = lambda code: f"{image_dir}/shape_outlines/{shape_of[code]}.png"
+            # Drawings use the traced vector (SVG) versions made by
+            # prepare_nameability_stimuli.py, which stay crisp when scaled/rotated.
+            outline = lambda code: f"{image_dir}/shape_outlines/{shape_of[code]}.svg"
             swatch = lambda code: f"{image_dir}/colors/{color_of[code]}.png"
-            composite = lambda s, c: f"{image_dir}/all_shapes/{shape_of[s]}_{color_of[c]}.png"
+            composite = lambda s, c: f"{image_dir}/all_shapes/{shape_of[s]}_{color_of[c]}.svg"
 
             for role, stimulus_id in {**shape_of, **color_of}.items():
                 design_out.append(dict(condition=condition, design=design, role=role, stimulus_id=stimulus_id))
