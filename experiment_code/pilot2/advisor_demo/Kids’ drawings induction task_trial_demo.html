@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kids’ drawings induction task: trial demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F6F4;--panel:#FFFFFF;--ink:#1D1F21;--muted:#5C6166;--line:#D7D9DB;--accent:#2F5D8A;--accent-ink:#FFFFFF;
+  --canvas:#EDEDEB;--canvas-ink:#222324;--canvas-muted:#5E6266;
+  color-scheme:light;box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#16181A;--panel:#202326;--ink:#ECEDEE;--muted:#A2A7AC;--line:#373B3F;--accent:#8DB4DA;--accent-ink:#0F1A24;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#16181A;--panel:#202326;--ink:#ECEDEE;--muted:#A2A7AC;--line:#373B3F;--accent:#8DB4DA;--accent-ink:#0F1A24;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+header{padding:32px 0 8px}
+h1{font-size:28px;line-height:1.2;margin:0 0 6px;font-weight:700;letter-spacing:-0.01em}
+h2{font-size:20px;margin:0 0 4px;font-weight:700}
+h3{font-size:16px;margin:24px 0 10px;font-weight:700}
+.sub{color:var(--muted);margin:0;max-width:68ch}
+.toolbar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:16px 20px;margin-top:16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;padding:7px 12px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+label.tog{display:inline-flex;gap:8px;align-items:center;color:var(--muted);cursor:pointer}
+.lead{color:var(--muted);font-size:14px}
+section{padding:28px 0 8px}
+.secnote{color:var(--muted);margin:0 0 16px;max-width:70ch}
+.canvas{background:var(--canvas);color:var(--canvas-ink);border-radius:14px;padding:24px;text-align:center}
+.train-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:stretch}
+.stepper{display:flex;flex-direction:column;justify-content:center;gap:12px}
+.stepper .count{color:var(--muted);font-size:14px}
+.stepper .btns{display:flex;gap:8px;flex-wrap:wrap}
+.caption{font-size:20px;margin-top:8px}
+.kids{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kid{background:var(--canvas);color:var(--canvas-ink);border-radius:12px;padding:12px}
+.kid .name{font-weight:700;margin-bottom:6px}
+.kid .figs{display:flex;flex-wrap:wrap;gap:4px}
+.kid .stat{font-size:13px;color:var(--canvas-muted);margin-top:6px}
+.trials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.tgroup{display:flex;flex-direction:column;gap:6px}
+.tgroup .gname{font-size:14px;color:var(--muted)}
+.tgroup button{text-align:left;font-size:14px}
+.tgroup button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.prompt{font-size:20px;margin:0 0 12px}
+.question{font-size:18px;margin:12px 0 18px}
+.swatches{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
+.opt{width:84px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.sw{width:64px;height:64px;border-radius:10px;border:1px solid rgba(0,0,0,.25);padding:0;cursor:pointer}
+.sw[aria-pressed="true"]{outline:3px solid var(--canvas-ink);outline-offset:3px}
+.code{font-size:13px;color:var(--canvas-muted)}
+.pill{font-size:12px;line-height:1.3;padding:3px 7px;border-radius:6px;text-align:center}
+.p-cat{background:#DCE7F2;color:#1F4466}.p-conj{background:#F4E4CC;color:#6E4100}
+.p-link{background:#D8EEDF;color:#1E5A37}.p-reas{background:#E6DEF2;color:#4B347A}.p-foil{background:#E2E3E4;color:#45494D}
+.hidden-shape{width:150px;height:150px;border:1.5px dashed #9A9EA2;border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--canvas-muted);font-size:14px;margin:0 auto}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--muted)}
+.ed{display:grid;grid-template-columns:auto repeat(5,minmax(0,1fr));gap:8px 10px;align-items:center;margin:12px 0}
+.ed input[type=color]{width:100%;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:2px}
+.ed .h{font-size:13px;color:var(--muted);text-align:center}
+.leg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:12px 0 4px}
+.leg-h{font-weight:700;margin-bottom:8px}
+.leg-list{display:flex;flex-direction:column;gap:8px}
+.leg-row{display:flex;align-items:center;gap:12px;font-size:14px}
+.leg-sw{width:30px;height:30px;border-radius:6px;border:1px solid rgba(0,0,0,.25);flex:none}
+.leg-shape{background:var(--canvas);border-radius:6px;flex:none;display:flex;padding:2px}
+.leg-code{font-weight:700;min-width:26px}
+footer{color:var(--muted);font-size:14px;padding:32px 0 40px}
+@media (max-width:720px){
+  .train-row,.kids,.trials,.leg-grid{grid-template-columns:minmax(0,1fr)}
+  h1{font-size:24px}
+}
+@media (prefers-reduced-motion:no-preference){.fig path{transition:fill .15s}}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <h1>Kids’ drawings induction task</h1>
+  <p class="sub">A walkthrough of one block: three kids, four shapes, five colors. Step through the training drawings, then try each test trial. Turn on the answer key to see which strategy each color choice reflects.</p>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <span class="lead">Colors</span>
+    <span class="seg" role="group" aria-label="Color set">
+      <button id="set-easy" aria-pressed="true">Easy to name</button>
+      <button id="set-hard" aria-pressed="false">Hard to name</button>
+    </span>
+    <label class="tog"><input type="checkbox" id="keyT" checked> Show answer key</label>
+    <label class="tog"><input type="checkbox" id="shufT"> Shuffle swatch order</label>
+  </div>
+  <details open>
+    <summary>Legend</summary>
+    <div class="leg-grid">
+      <div><div class="leg-h">Colors</div><div class="leg-list" id="colLegend"></div></div>
+      <div><div class="leg-h">Shapes</div><div class="leg-list" id="shapeLegend"></div></div>
+    </div>
+  </details>
+  <details>
+    <summary>Edit stimulus colors</summary>
+    <div class="ed" id="editor"></div>
+    <button id="resetCol">Reset to default colors</button>
+  </details>
+</div>
+
+<main class="wrap">
+  <section aria-labelledby="train-h">
+    <h2 id="train-h">Training</h2>
+    <p class="secnote">Participants see one drawing at a time with the kid’s name. Shapes vary slightly from drawing to drawing, so people learn shape classes rather than identical copies.</p>
+    <div class="train-row">
+      <div class="canvas" aria-live="polite">
+        <div id="trainFig"></div>
+        <div class="caption" id="trainCap"></div>
+      </div>
+      <div class="stepper">
+        <div class="count" id="trainCount"></div>
+        <div class="btns">
+          <button id="prev">Previous drawing</button>
+          <button id="next">Next drawing</button>
+          <button id="reshuf">Shuffle order</button>
+        </div>
+      </div>
+    </div>
+    <h3>Full training set</h3>
+    <div class="kids" id="kids"></div>
+  </section>
+
+  <section aria-labelledby="test-h">
+    <h2 id="test-h">Test</h2>
+    <p class="secnote">Pick a trial, then click a color to see the drawing filled in. Test drawings are new instances of each shape.</p>
+    <div class="trials" id="trials"></div>
+    <div class="canvas">
+      <p class="prompt" id="prompt"></p>
+      <div id="testFig"></div>
+      <p class="question" id="question">What color do you think it is?</p>
+      <div class="swatches" id="swatches" role="group" aria-label="Color choices"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">Color and shape codes match the training and test trial CSVs.</footer>
+
+<script>
+const SHAPES={
+  S1:"M15 55 L40 55 L40 15 L62 37 L72 37 L88 53 L70 71 L62 63 L62 85 L32 85 Z",
+  S2:"M20 20 L60 20 L82 42 L82 60 L60 82 L40 82 L40 66 L56 66 L62 52 L46 40 L20 40 Z",
+  S3:"M10 40 L35 40 L50 55 L65 40 L90 40 L70 60 L80 82 L55 70 L30 82 L35 60 Z",
+  S4:"M30 15 L50 30 L76 20 L70 45 L90 60 L60 65 L50 90 L40 65 L12 60 L32 42 Z"
+};
+const DEFAULTS={easy:["#D9473F","#3B78C9","#E8C230","#3E9A4E","#8A55B5"],hard:["#B07A8C","#5E8F8B","#C2A36B","#7D8C4E","#8C7BB0"]};
+const STORE="kids-drawings-demo-colors";
+let COLORS=JSON.parse(JSON.stringify(DEFAULTS));
+try{const s=JSON.parse(localStorage.getItem(STORE)||"null");if(s&&s.easy&&s.hard&&s.easy.length===5&&s.hard.length===5)COLORS=s}catch(e){}
+function saveColors(){try{localStorage.setItem(STORE,JSON.stringify(COLORS))}catch(e){}}
+
+const COMP={Lucy:[["S1",4,2],["S1",0,1],["S3",0,5]],Sam:[["S2",4,2],["S2",1,1],["S3",1,5]],Ana:[["S4",3,3],["S3",2,5]]};
+const DOM={Lucy:0,Sam:1,Ana:2};
+const items=[];const tok={};
+Object.entries(COMP).forEach(([kid,rows])=>rows.forEach(([s,c,n])=>{for(let i=0;i<n;i++){tok[s]=(tok[s]||0)+1;items.push({kid,shape:s,color:c,token:tok[s]})}}));
+
+const g=t=>["p-foil",t];
+function kidKey(kid,over){
+  const k={0:g("Lucy’s usual color"),1:g("Sam’s usual color"),2:g("Ana’s usual color")};
+  if(kid==="Ana"){k[3]=g("Ana’s other color (3 of 8, all S4s)");k[4]=g("Never used by Ana")}
+  else{k[3]=g(`Never used by ${kid} (only on S4s)`);k[4]=g(`${kid}’s other color (2 of 8)`)}
+  return Object.assign(k,over);
+}
+const TRIALS=[
+  {id:"lucy-agree",group:"Lucy",label:"Lucy + S3 (agree)",kid:"Lucy",shape:"S3",key:kidKey("Lucy",{0:["p-cat","Lucy’s usual, and all her S3s"],4:g("Lucy’s other color (only on her S1s)")})},
+  {id:"lucy-dis",group:"Lucy",label:"Lucy + S1 (classic disagree)",kid:"Lucy",shape:"S1",key:kidKey("Lucy",{0:["p-cat","Lucy’s usual (category answer)"],4:["p-conj","2 of Lucy’s 3 S1s (conjunction answer)"]})},
+  {id:"lucy-cross",group:"Lucy",label:"Lucy + S4 (cross-category)",kid:"Lucy",shape:"S4",key:kidKey("Lucy",{0:["p-cat","Lucy’s usual (category answer)"],3:["p-link","Every S4 was C4 (shape-based answer)"],2:["p-reas","Ana’s usual (as if Ana drew it)"]})},
+  {id:"lucy-cat",group:"Lucy",label:"Lucy only (category)",kid:"Lucy",shape:null,key:kidKey("Lucy",{0:["p-cat","Lucy’s usual (6 of 8)"]})},
+  {id:"sam-agree",group:"Sam",label:"Sam + S3 (agree)",kid:"Sam",shape:"S3",key:kidKey("Sam",{1:["p-cat","Sam’s usual, and all his S3s"],4:g("Sam’s other color (only on his S2s)")})},
+  {id:"sam-dis",group:"Sam",label:"Sam + S2 (classic disagree)",kid:"Sam",shape:"S2",key:kidKey("Sam",{1:["p-cat","Sam’s usual (category answer)"],4:["p-conj","2 of Sam’s 3 S2s (conjunction answer)"]})},
+  {id:"sam-cross",group:"Sam",label:"Sam + S4 (cross-category)",kid:"Sam",shape:"S4",key:kidKey("Sam",{1:["p-cat","Sam’s usual (category answer)"],3:["p-link","Every S4 was C4 (shape-based answer)"],2:["p-reas","Ana’s usual (as if Ana drew it)"]})},
+  {id:"sam-cat",group:"Sam",label:"Sam only (category)",kid:"Sam",shape:null,key:kidKey("Sam",{1:["p-cat","Sam’s usual (6 of 8)"]})},
+  {id:"ana-cat",group:"Ana",label:"Ana only (category)",kid:"Ana",shape:null,key:kidKey("Ana",{2:["p-cat","Ana’s usual (5 of 8)"]})},
+  {id:"ana-cross",group:"Ana",label:"Ana + S1 (cross-category)",kid:"Ana",shape:"S1",key:kidKey("Ana",{2:["p-cat","Ana’s usual (category answer)"],4:["p-link","2 of the 3 S1s were C5 (shape-based answer)"],0:["p-reas","Lucy’s usual (as if Lucy drew it)"]})},
+  {id:"probe-s3",group:"Ana",label:"Ana’s S3s (memory check)",kid:"Ana",shape:"S3",p:"Ana drew this shape during training.",q:"What color did she use?",key:kidKey("Ana",{2:["p-link","Correct: all 5 of Ana’s S3s"],3:g("Ana’s other color, but never on an S3")})},
+  {id:"probe",group:"Ana",label:"Ana’s S4s (memory check)",kid:"Ana",shape:"S4",p:"Ana drew this shape during training.",q:"What color did she use?",key:kidKey("Ana",{3:["p-link","Correct: all 3 of Ana’s S4s"],2:g("Ana’s usual, but never on an S4")})},
+  {id:"shape",group:"No kid named",label:"S4 only (kid not named)",kid:null,shape:"S4",key:{0:g("Lucy’s usual color"),1:g("Sam’s usual color"),2:["p-reas","Ana’s usual (guess Ana, use her usual color)"],3:["p-link","Every S4 was C4 (shape-based answer)"],4:g("Never on an S4")}}
+];
+
+let set="easy",trialId="lucy-dis",pick=null,order=[0,1,2,3,4];
+let trainOrder=shuffle(items.map((_,i)=>i)),trainPos=0;
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function fig(shape,fill,size,t){
+  const r=((t*37)%17)-8,sc=(0.88+((t*13)%7)*0.035).toFixed(3);
+  const f=fill||"#FFFFFF";
+  return `<svg class="fig" viewBox="0 0 100 100" width="${size}" height="${size}" aria-hidden="true"><path d="${SHAPES[shape]}" fill="${f}" stroke="#2A2A2A" stroke-width="${size>90?1.8:2.6}" stroke-linejoin="round" transform="rotate(${r} 50 50) translate(50 50) scale(${sc}) translate(-50 -50)"/></svg>`;
+}
+const $=id=>document.getElementById(id);
+
+function renderTrain(){
+  const c=COLORS[set],it=items[trainOrder[trainPos]];
+  $("trainFig").innerHTML=fig(it.shape,c[it.color],170,it.token+it.kid.length);
+  $("trainCap").textContent=`${it.kid} drew this.`;
+  $("trainCount").textContent=`Drawing ${trainPos+1} of ${items.length}`;
+  $("kids").innerHTML=Object.keys(COMP).map(kid=>{
+    const mine=items.filter(x=>x.kid===kid);
+    const figs=mine.map(x=>fig(x.shape,c[x.color],46,x.token+kid.length)).join("");
+    const n=mine.filter(x=>x.color===DOM[kid]).length;
+    return `<div class="kid"><div class="name">${kid}’s drawings</div><div class="figs">${figs}</div><div class="stat">Usual color: C${DOM[kid]+1} on ${n} of ${mine.length}</div></div>`;
+  }).join("");
+}
+function renderTrialList(){
+  const groups=["Lucy","Sam","Ana","No kid named"];
+  $("trials").innerHTML=groups.map(g=>`<div class="tgroup"><div class="gname">${g}</div>${TRIALS.filter(t=>t.group===g).map(t=>`<button data-id="${t.id}" aria-pressed="${t.id===trialId}">${t.label}</button>`).join("")}</div>`).join("");
+  $("trials").querySelectorAll("button").forEach(b=>b.onclick=()=>{trialId=b.dataset.id;pick=null;newOrder();renderTrialList();renderTest()});
+}
+function newOrder(){order=$("shufT").checked?shuffle([0,1,2,3,4]):[0,1,2,3,4]}
+function renderTest(){
+  const c=COLORS[set],t=TRIALS.find(x=>x.id===trialId),showKey=$("keyT").checked;
+  $("prompt").textContent=t.p||(t.kid?(t.shape?`${t.kid} made this new drawing.`:`${t.kid} made a new drawing.`):"Someone made this new drawing.");
+  $("question").textContent=t.q||"What color do you think it is?";
+  $("testFig").innerHTML=t.shape?fig(t.shape,pick!==null?c[pick]:null,170,20):`<div class="hidden-shape">Shape not shown</div>`;
+  $("swatches").innerHTML=order.map((i,pos)=>{
+    const k=t.key[i];
+    const extra=showKey?`<div class="code">C${i+1}</div><div class="pill ${k[0]}">${k[1]}</div>`:"";
+    return `<div class="opt"><button class="sw" data-i="${i}" aria-pressed="${pick===i}" style="background:${c[i]}" aria-label="Color option ${pos+1}${showKey?`, C${i+1}, ${k[1]}`:""}"></button>${extra}</div>`;
+  }).join("");
+  $("swatches").querySelectorAll(".sw").forEach(b=>b.onclick=()=>{pick=+b.dataset.i;renderTest()});
+}
+const COLROLE=["Lucy’s usual color","Sam’s usual color","Ana’s usual color","Color of every S4 drawing (the shape-based answer)","Minority color of Lucy’s S1 and Sam’s S2 drawings"];
+const SHAPEROLE={S1:"Lucy only, mostly C5 (Lucy’s disagree shape)",S2:"Sam only, mostly C5 (Sam’s disagree shape)",S3:"Drawn by every kid in their usual color",S4:"Ana only, always C4"};
+function renderLegend(){
+  const c=COLORS[set];
+  $("colLegend").innerHTML=c.map((h,i)=>`<div class="leg-row"><span class="leg-sw" style="background:${h}"></span><span class="leg-code">C${i+1}</span><span>${COLROLE[i]}</span></div>`).join("");
+  $("shapeLegend").innerHTML=Object.keys(SHAPES).map(s=>`<div class="leg-row"><span class="leg-shape">${fig(s,null,34,1)}</span><span class="leg-code">${s}</span><span>${SHAPEROLE[s]}</span></div>`).join("");
+}
+function renderEditor(){
+  let h=`<span></span>${[1,2,3,4,5].map(i=>`<span class="h">C${i}</span>`).join("")}`;
+  ["easy","hard"].forEach(s=>{
+    h+=`<span class="lead">${s==="easy"?"Easy to name":"Hard to name"}</span>`;
+    h+=COLORS[s].map((v,i)=>`<input type="color" data-s="${s}" data-i="${i}" value="${v}" aria-label="${s} C${i+1}">`).join("");
+  });
+  $("editor").innerHTML=h;
+  $("editor").querySelectorAll("input").forEach(inp=>inp.oninput=()=>{COLORS[inp.dataset.s][+inp.dataset.i]=inp.value;saveColors();renderLegend();renderTrain();renderTest()});
+}
+function setColors(s){set=s;$("set-easy").setAttribute("aria-pressed",s==="easy");$("set-hard").setAttribute("aria-pressed",s==="hard");renderLegend();renderTrain();renderTest()}
+
+$("set-easy").onclick=()=>setColors("easy");
+$("set-hard").onclick=()=>setColors("hard");
+$("keyT").onchange=renderTest;
+$("shufT").onchange=()=>{newOrder();renderTest()};
+$("prev").onclick=()=>{trainPos=(trainPos-1+items.length)%items.length;renderTrain()};
+$("next").onclick=()=>{trainPos=(trainPos+1)%items.length;renderTrain()};
+$("reshuf").onclick=()=>{trainOrder=shuffle(trainOrder);trainPos=0;renderTrain()};
+$("resetCol").onclick=()=>{COLORS=JSON.parse(JSON.stringify(DEFAULTS));saveColors();renderEditor();renderLegend();renderTrain();renderTest()};
+
+renderEditor();renderLegend();renderTrain();renderTrialList();renderTest();
+</script>
+</body>
+</html>

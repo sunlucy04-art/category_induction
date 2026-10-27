@@ -1,0 +1,25 @@
+id,kid,kid_usual_color,shape,token,shape_role,color
+L01,Lucy,C1,S1,t1,"Lucy only, mostly C5 (Lucy's disagree shape)",C5
+L02,Lucy,C1,S1,t2,"Lucy only, mostly C5 (Lucy's disagree shape)",C5
+L03,Lucy,C1,S1,t3,"Lucy only, mostly C5 (Lucy's disagree shape)",C1
+L04,Lucy,C1,S3,t1,drawn by every kid in their usual color,C1
+L05,Lucy,C1,S3,t2,drawn by every kid in their usual color,C1
+L06,Lucy,C1,S3,t3,drawn by every kid in their usual color,C1
+L07,Lucy,C1,S3,t4,drawn by every kid in their usual color,C1
+L08,Lucy,C1,S3,t5,drawn by every kid in their usual color,C1
+L09,Sam,C2,S2,t1,"Sam only, mostly C5 (Sam's disagree shape)",C5
+L10,Sam,C2,S2,t2,"Sam only, mostly C5 (Sam's disagree shape)",C5
+L11,Sam,C2,S2,t3,"Sam only, mostly C5 (Sam's disagree shape)",C2
+L12,Sam,C2,S3,t6,drawn by every kid in their usual color,C2
+L13,Sam,C2,S3,t7,drawn by every kid in their usual color,C2
+L14,Sam,C2,S3,t8,drawn by every kid in their usual color,C2
+L15,Sam,C2,S3,t9,drawn by every kid in their usual color,C2
+L16,Sam,C2,S3,t10,drawn by every kid in their usual color,C2
+L17,Ana,C3,S4,t1,"Ana only, always C4",C4
+L18,Ana,C3,S4,t2,"Ana only, always C4",C4
+L19,Ana,C3,S4,t3,"Ana only, always C4",C4
+L20,Ana,C3,S3,t11,drawn by every kid in their usual color,C3
+L21,Ana,C3,S3,t12,drawn by every kid in their usual color,C3
+L22,Ana,C3,S3,t13,drawn by every kid in their usual color,C3
+L23,Ana,C3,S3,t14,drawn by every kid in their usual color,C3
+L24,Ana,C3,S3,t15,drawn by every kid in their usual color,C3
