@@ -15,7 +15,7 @@ Every participant learns exactly the demo's three categories (Lucy, Sam, Ana) wi
   - **who_drew** (6): a drawing from training (each kid's shape in the color that kid mostly used for it); choose Lucy/Sam/Ana
   - **memory_probe** (4 more, so every kid × shape is covered): "What color did Sam use for this shape?"
   - **most_frequent_shape** (3): "Which shape did Sam draw most often?", choosing from the 4 shape outlines
-- Answer options (swatches, shapes, names) are shuffled on every trial. Every drawing shown gets a small random rotation (±8°) and scale change (0.88–1.09×).
+- Answer options (swatches, shapes, names) are shuffled on every trial. Every drawing shown gets a small random rotation (±8°); size stays the same.
 
 **Shapes** are fixed (`SHAPE_ROLES` in `generate_design.py`), with the same shape numbers in both conditions:
 

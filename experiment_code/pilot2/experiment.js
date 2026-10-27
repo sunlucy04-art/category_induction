@@ -52,10 +52,12 @@ const TRAINING_GAP_MS = 500;
 // across the three check types within each training block.
 const ONE_BACK_PROPORTION = 0.25;
 
-// Range of the random rotation/scale applied to every drawing shown.
+// Range of the random rotation/scale applied to every drawing shown. Scale
+// is fixed at 1 (no size change): size variation made drawings of the same
+// shape look like different sizes.
 const JITTER_MAX_ROTATION_DEG = 8;
-const JITTER_MIN_SCALE = 0.88;
-const JITTER_MAX_SCALE = 1.09;
+const JITTER_MIN_SCALE = 1;
+const JITTER_MAX_SCALE = 1;
 
 // From your pipe at https://pipe.jspsych.org — every participant's data
 // gets uploaded to whatever OSF project that pipe is linked to. The same
