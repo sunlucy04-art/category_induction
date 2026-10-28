@@ -28,6 +28,11 @@ from scipy.ndimage import label
 
 ROOT = Path(__file__).resolve().parent
 
+# example_shapes / example_colors: stimuli for the illustrated instructions
+# and practice trials, deliberately NOT used in any real trial (the trials
+# use shapes 13, 1, 10 and 7 and the 5 colors in color_source). Written to
+# examples_dir as shapeA/shapeB (outlines), shapeA_ex1..5 / shapeB_ex1..5
+# (filled) and ex1..5 (swatches), the names experiment.js expects.
 CONDITIONS = {
     "high_nameability": {
         "shape_source": ROOT / "images/shape_outines/high_shape_selected",
@@ -35,6 +40,11 @@ CONDITIONS = {
         "outlines_dir": ROOT / "images/high_nameability/shape_outlines",
         "fill_dir": ROOT / "images/high_nameability/colors",
         "shapes_dir": ROOT / "images/high_nameability/all_shapes",
+        "examples_dir": ROOT / "images/high_nameability/instruction_examples",
+        "example_shapes": ["high_shape4", "high_shape9"],
+        # green, pink, brown (high_color7), gray (high_color6), teal; the
+        # high pool only has two unused colors, so three are added here.
+        "example_colors": ["#34A04A", "#F27AB0", "#785028", "#828282", "#1E9C96"],
     },
     "low_nameability": {
         "shape_source": ROOT / "images/shape_outines/low_shape_selected",
@@ -42,6 +52,11 @@ CONDITIONS = {
         "outlines_dir": ROOT / "images/low_nameability/shape_outlines",
         "fill_dir": ROOT / "images/low_nameability/colors",
         "shapes_dir": ROOT / "images/low_nameability/all_shapes",
+        "examples_dir": ROOT / "images/low_nameability/instruction_examples",
+        "example_shapes": ["low_shape4", "low_shape9"],
+        # low_color4, low_color5, low_color7, low_color9, low_color11 (unused
+        # colors from the low pool)
+        "example_colors": ["#AAA028", "#A0B414", "#96C8B4", "#46645A", "#A00050"],
     },
 }
 
@@ -185,6 +200,26 @@ def prepare_condition(name, config):
             write_svg(polygon, line_width, size, "#%02X%02X%02X" % color_rgb, out_path.with_suffix(".svg"))
 
     print(f"wrote {len(shape_files) * len(color_files)} composite images (PNG + SVG) to {config['shapes_dir']}")
+
+    write_instruction_examples(config)
+
+
+def write_instruction_examples(config):
+    examples_dir = config["examples_dir"]
+    examples_dir.mkdir(parents=True, exist_ok=True)
+    for letter, shape_id in zip("AB", config["example_shapes"]):
+        shape_file = config["shape_source"] / f"{shape_id}.png"
+        polygon, line_width = trace_polygon(shape_file)
+        size = Image.open(shape_file).size
+        write_svg(polygon, line_width, size, "none", examples_dir / f"shape{letter}.svg")
+        for i, fill in enumerate(config["example_colors"], 1):
+            write_svg(polygon, line_width, size, fill, examples_dir / f"shape{letter}_ex{i}.svg")
+    for i, fill in enumerate(config["example_colors"], 1):
+        (examples_dir / f"ex{i}.svg").write_text(
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">'
+            f'<rect width="240" height="240" fill="{fill}"/></svg>\n'
+        )
+    print(f"wrote instruction examples to {examples_dir}")
 
 
 def main():

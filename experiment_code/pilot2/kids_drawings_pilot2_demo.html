@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kids’ drawings induction task: pilot 2 demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<!-- Styles follow the advisor's trial demo (advisor_demo/Kids’ drawings induction task_trial_demo.html). -->
+<style>
+:root{
+  --bg:#F6F6F4;--panel:#FFFFFF;--ink:#1D1F21;--muted:#5C6166;--line:#D7D9DB;--accent:#2F5D8A;--accent-ink:#FFFFFF;
+  --canvas:#EDEDEB;--canvas-ink:#222324;--canvas-muted:#5E6266;
+  color-scheme:light;box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#16181A;--panel:#202326;--ink:#ECEDEE;--muted:#A2A7AC;--line:#373B3F;--accent:#8DB4DA;--accent-ink:#0F1A24;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#16181A;--panel:#202326;--ink:#ECEDEE;--muted:#A2A7AC;--line:#373B3F;--accent:#8DB4DA;--accent-ink:#0F1A24;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+header{padding:32px 0 8px}
+h1{font-size:28px;line-height:1.2;margin:0 0 6px;font-weight:700;letter-spacing:-0.01em}
+h2{font-size:20px;margin:0 0 4px;font-weight:700}
+h3{font-size:16px;margin:24px 0 10px;font-weight:700}
+.sub{color:var(--muted);margin:0;max-width:68ch}
+.toolbar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:16px 20px;margin-top:16px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;padding:7px 12px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+label.tog{display:inline-flex;gap:8px;align-items:center;color:var(--muted);cursor:pointer}
+.lead{color:var(--muted);font-size:14px}
+section{padding:28px 0 8px}
+.secnote{color:var(--muted);margin:0 0 16px;max-width:70ch}
+.canvas{background:var(--canvas);color:var(--canvas-ink);border-radius:14px;padding:24px;text-align:center}
+.train-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;align-items:stretch}
+.stepper{display:flex;flex-direction:column;justify-content:center;gap:12px}
+.stepper .count{color:var(--muted);font-size:14px}
+.stepper .btns{display:flex;gap:8px;flex-wrap:wrap}
+.caption{font-size:20px;margin-top:8px}
+.kids{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kid{background:var(--canvas);color:var(--canvas-ink);border-radius:12px;padding:12px}
+.kid .name{font-weight:700;margin-bottom:6px}
+.kid .figs{display:flex;flex-wrap:wrap;gap:4px}
+.kid .stat{font-size:13px;color:var(--canvas-muted);margin-top:6px}
+.trials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.trials.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.tgroup{display:flex;flex-direction:column;gap:6px}
+.tgroup .gname{font-size:14px;color:var(--muted)}
+.tgroup button{text-align:left;font-size:14px}
+.tgroup button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.prompt{font-size:20px;margin:0 0 12px}
+.question{font-size:18px;margin:12px 0 18px}
+.swatches{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
+.opt{width:84px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.sw{width:64px;height:64px;border-radius:10px;border:1px solid rgba(0,0,0,.25);padding:0;cursor:pointer}
+.sw[aria-pressed="true"],.shape-opt[aria-pressed="true"],.name-opt[aria-pressed="true"]{outline:3px solid var(--canvas-ink);outline-offset:3px}
+.shape-opt{width:76px;height:76px;padding:4px;background:#FFFFFF;border:1px solid rgba(0,0,0,.25);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.name-opt{min-width:76px;background:#FFFFFF;color:#222324;border:1px solid rgba(0,0,0,.25)}
+.code{font-size:13px;color:var(--canvas-muted)}
+.pill{font-size:12px;line-height:1.3;padding:3px 7px;border-radius:6px;text-align:center}
+.p-cat{background:#DCE7F2;color:#1F4466}.p-conj{background:#F4E4CC;color:#6E4100}
+.p-link{background:#D8EEDF;color:#1E5A37}.p-reas{background:#E6DEF2;color:#4B347A}.p-foil{background:#E2E3E4;color:#45494D}
+.hidden-shape{width:170px;height:170px;margin:0 auto}
+details{margin-top:12px}
+summary{cursor:pointer;color:var(--muted)}
+.leg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:12px 0 4px}
+.leg-h{font-weight:700;margin-bottom:8px}
+.leg-list{display:flex;flex-direction:column;gap:8px}
+.leg-row{display:flex;align-items:center;gap:12px;font-size:14px}
+.leg-sw{width:30px;height:30px;border-radius:6px;border:1px solid rgba(0,0,0,.25);flex:none}
+.leg-shape{background:var(--canvas);border-radius:6px;flex:none;display:flex;padding:2px}
+.leg-code{font-weight:700;min-width:26px}
+.check-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+.check-row button{font-size:14px}
+.check-row button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.meta{font-size:14px;color:var(--muted);margin:12px 0 0;max-width:70ch}
+.steps{margin:0 0 8px;padding-left:1.3em;display:flex;flex-direction:column;gap:4px;max-width:72ch}
+.table-scroll{overflow-x:auto}
+table.counts{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.counts th,.counts td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.counts th{color:var(--muted);font-weight:700}
+.counts td.n,.counts th.n{text-align:right;white-space:nowrap}
+.counts tr.total td{font-weight:700;border-bottom:0}
+.counts tr.phase td{color:var(--muted);font-weight:700;padding-top:16px}
+footer{color:var(--muted);font-size:14px;padding:32px 0 40px}
+@media (max-width:720px){
+  .train-row,.kids,.trials,.trials.three,.leg-grid{grid-template-columns:minmax(0,1fr)}
+  h1{font-size:24px}
+}
+@media (prefers-reduced-motion:no-preference){.fig path{transition:fill .15s}}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <h1>Kids’ drawings induction task: pilot 2</h1>
+  <p class="sub" id="headSub"></p>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <span class="lead">Condition</span>
+    <span class="seg" role="group" aria-label="Condition" id="condSeg"></span>
+    <label class="tog"><input type="checkbox" id="keyT" checked> Show answer key</label>
+    <label class="tog"><input type="checkbox" id="shufT"> Shuffle option order</label>
+  </div>
+  <details open>
+    <summary>Legend</summary>
+    <div class="leg-grid">
+      <div><div class="leg-h">Colors</div><div class="leg-list" id="colLegend"></div></div>
+      <div><div class="leg-h">Shapes</div><div class="leg-list" id="shapeLegend"></div></div>
+    </div>
+  </details>
+  <details>
+    <summary>Session order</summary>
+    <ol class="steps" id="steps"></ol>
+  </details>
+</div>
+
+<main class="wrap">
+  <section aria-labelledby="train-h">
+    <h2 id="train-h">Training</h2>
+    <p class="secnote" id="trainNote"></p>
+    <div class="train-row">
+      <div class="canvas" aria-live="polite">
+        <div id="trainFig"></div>
+        <div class="caption" id="trainCap"></div>
+      </div>
+      <div class="stepper">
+        <div class="count" id="trainCount"></div>
+        <div class="btns">
+          <button id="prev">Previous drawing</button>
+          <button id="next">Next drawing</button>
+          <button id="reshuf">Shuffle order</button>
+        </div>
+      </div>
+    </div>
+    <h3>Attention checks</h3>
+    <p class="secnote" id="checkNote"></p>
+    <div class="canvas">
+      <div class="check-row" role="group" aria-label="Check type" id="checkTabs"></div>
+      <p class="question" id="checkQ"></p>
+      <div class="swatches" id="checkOpts" role="group" aria-label="Answer options"></div>
+    </div>
+    <h3>Full training set</h3>
+    <div class="kids" id="kids"></div>
+  </section>
+
+  <section aria-labelledby="test-h">
+    <h2 id="test-h">Test</h2>
+    <p class="secnote" id="testNote"></p>
+    <h3>Prediction trials</h3>
+    <div class="trials" id="predTrials"></div>
+    <h3>Memory questions</h3>
+    <div class="trials three" id="memTrials"></div>
+    <div class="canvas">
+      <p class="prompt" id="prompt"></p>
+      <div id="testFig"></div>
+      <p class="question" id="question"></p>
+      <div class="swatches" id="swatches" role="group" aria-label="Answer options"></div>
+    </div>
+    <p class="meta" id="meta"></p>
+  </section>
+
+  <section aria-labelledby="counts-h">
+    <h2 id="counts-h">Trial counts</h2>
+    <p class="secnote">Trials of the same type are functionally equivalent: they test the same thing with a different kid or shape. No trial is repeated.</p>
+    <div class="table-scroll"><table class="counts" id="counts"></table></div>
+    <p class="meta" id="demoNote"></p>
+  </section>
+</main>
+
+<footer class="wrap">Color and shape codes match the pilot 2 training and test trial CSVs. Generated from the trial lists and stimuli by make_overview.py.</footer>
+
+<script>
+const DATA = {"settings":{"trainingBlocks":4,"drawingMs":2500,"gapMs":500,"checksPerBlock":8,"maxRotation":8,"demoDrawings":7,"demoChecks":3,"demoTests":15},"training":[{"kid":"Lucy","shape":"S1","color":"C5"},{"kid":"Lucy","shape":"S1","color":"C5"},{"kid":"Lucy","shape":"S1","color":"C1"},{"kid":"Lucy","shape":"S3","color":"C1"},{"kid":"Lucy","shape":"S3","color":"C1"},{"kid":"Lucy","shape":"S3","color":"C1"},{"kid":"Lucy","shape":"S3","color":"C1"},{"kid":"Lucy","shape":"S3","color":"C1"},{"kid":"Sam","shape":"S2","color":"C5"},{"kid":"Sam","shape":"S2","color":"C5"},{"kid":"Sam","shape":"S2","color":"C2"},{"kid":"Sam","shape":"S3","color":"C2"},{"kid":"Sam","shape":"S3","color":"C2"},{"kid":"Sam","shape":"S3","color":"C2"},{"kid":"Sam","shape":"S3","color":"C2"},{"kid":"Sam","shape":"S3","color":"C2"},{"kid":"Ana","shape":"S4","color":"C4"},{"kid":"Ana","shape":"S4","color":"C4"},{"kid":"Ana","shape":"S4","color":"C4"},{"kid":"Ana","shape":"S3","color":"C3"},{"kid":"Ana","shape":"S3","color":"C3"},{"kid":"Ana","shape":"S3","color":"C3"},{"kid":"Ana","shape":"S3","color":"C3"},{"kid":"Ana","shape":"S3","color":"C3"}],"tests":[{"id":"T01","test_type":"agree","kid":"Lucy","shape":"S3","prompt":"Lucy made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C1","ans_within_conjunction":"C1","ans_shape_based":"mixed","ans_as_if_other_kid":"NA","diagnostic_for":"learning/attention check","options":[{"code":"C1","key":"Lucy's usual, and all of Lucy's S3s"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Lucy (only on S4s)"},{"code":"C5","key":"Lucy's other color (2 of 8, all S1s and S2s)"}]},{"id":"T02","test_type":"classic_disagree","kid":"Lucy","shape":"S1","prompt":"Lucy made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C1","ans_within_conjunction":"C5","ans_shape_based":"C5","ans_as_if_other_kid":"NA","diagnostic_for":"category summary vs within-category conditioning","options":[{"code":"C1","key":"Lucy's usual (category answer)"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Lucy (only on S4s)"},{"code":"C5","key":"2 of Lucy's 3 S1s (conjunction answer)"}]},{"id":"T03","test_type":"cross_category_conflict","kid":"Lucy","shape":"S4","prompt":"Lucy made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C1","ans_within_conjunction":"NA","ans_shape_based":"C4","ans_as_if_other_kid":"C3","diagnostic_for":"category membership vs shape","options":[{"code":"C1","key":"Lucy's usual (category answer)"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual (as if Ana drew it)"},{"code":"C4","key":"3 of 3 S4s were C4 (shape-based answer)"},{"code":"C5","key":"Lucy's other color (2 of 8, all S1s and S2s)"}]},{"id":"T04","test_type":"category_only","kid":"Lucy","shape":"none","prompt":"Lucy made a new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C1","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for kid's usual color","options":[{"code":"C1","key":"Lucy's usual (6 of 8)"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Lucy (only on S4s)"},{"code":"C5","key":"Lucy's other color (2 of 8, all S1s and S2s)"}]},{"id":"T05","test_type":"agree","kid":"Sam","shape":"S3","prompt":"Sam made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C2","ans_within_conjunction":"C2","ans_shape_based":"mixed","ans_as_if_other_kid":"NA","diagnostic_for":"learning/attention check","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual, and all of Sam's S3s"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Sam (only on S4s)"},{"code":"C5","key":"Sam's other color (2 of 8, all S1s and S2s)"}]},{"id":"T06","test_type":"classic_disagree","kid":"Sam","shape":"S2","prompt":"Sam made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C2","ans_within_conjunction":"C5","ans_shape_based":"C5","ans_as_if_other_kid":"NA","diagnostic_for":"category summary vs within-category conditioning","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual (category answer)"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Sam (only on S4s)"},{"code":"C5","key":"2 of Sam's 3 S2s (conjunction answer)"}]},{"id":"T07","test_type":"cross_category_conflict","kid":"Sam","shape":"S4","prompt":"Sam made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C2","ans_within_conjunction":"NA","ans_shape_based":"C4","ans_as_if_other_kid":"C3","diagnostic_for":"category membership vs shape","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual (category answer)"},{"code":"C3","key":"Ana's usual (as if Ana drew it)"},{"code":"C4","key":"3 of 3 S4s were C4 (shape-based answer)"},{"code":"C5","key":"Sam's other color (2 of 8, all S1s and S2s)"}]},{"id":"T08","test_type":"category_only","kid":"Sam","shape":"none","prompt":"Sam made a new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C2","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for kid's usual color","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual (6 of 8)"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Sam (only on S4s)"},{"code":"C5","key":"Sam's other color (2 of 8, all S1s and S2s)"}]},{"id":"T09","test_type":"category_only","kid":"Ana","shape":"none","prompt":"Ana made a new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C3","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for kid's usual color","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual (5 of 8)"},{"code":"C4","key":"Ana's other color (3 of 8, all S4s)"},{"code":"C5","key":"never used by Ana (only on S1s and S2s)"}]},{"id":"T11","test_type":"kid_not_named","kid":"none","shape":"S4","prompt":"Someone made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C3 (if Ana is guessed)","ans_within_conjunction":"NA","ans_shape_based":"C4","ans_as_if_other_kid":"NA","diagnostic_for":"uncertain kid: guess Ana and use the usual color vs shape-based","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual (guess Ana, use Ana's usual color)"},{"code":"C4","key":"every S4 was C4 (shape-based answer)"},{"code":"C5","key":"never on an S4"}]},{"id":"T12","test_type":"memory_probe","kid":"Ana","shape":"S4","prompt":"Ana drew this shape earlier.","question":"What color did Ana use for this shape?","response_type":"color","figure_color":"","correct_answer":"C4","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"C4 (correct)","ans_as_if_other_kid":"NA","diagnostic_for":"memory for the color of Ana's S4s","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual, but never on an S4"},{"code":"C4","key":"correct: all 3 of Ana's S4s"},{"code":"C5","key":"never used by Ana (only on S1s and S2s)"}]},{"id":"T13","test_type":"memory_probe","kid":"Ana","shape":"S3","prompt":"Ana drew this shape earlier.","question":"What color did Ana use for this shape?","response_type":"color","figure_color":"","correct_answer":"C3","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"C3 (correct)","ans_as_if_other_kid":"NA","diagnostic_for":"memory for the color of Ana's S3s","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"correct: all 5 of Ana's S3s"},{"code":"C4","key":"Ana's other color (3 of 8, all S4s)"},{"code":"C5","key":"never used by Ana (only on S1s and S2s)"}]},{"id":"T14","test_type":"cross_category_conflict","kid":"Lucy","shape":"S2","prompt":"Lucy made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C1","ans_within_conjunction":"NA","ans_shape_based":"C5","ans_as_if_other_kid":"C2","diagnostic_for":"category membership vs shape","options":[{"code":"C1","key":"Lucy's usual (category answer)"},{"code":"C2","key":"Sam's usual (as if Sam drew it)"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Lucy (only on S4s)"},{"code":"C5","key":"2 of the 3 S2s were C5 (shape-based answer)"}]},{"id":"T15","test_type":"cross_category_conflict","kid":"Sam","shape":"S1","prompt":"Sam made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C2","ans_within_conjunction":"NA","ans_shape_based":"C5","ans_as_if_other_kid":"C1","diagnostic_for":"category membership vs shape","options":[{"code":"C1","key":"Lucy's usual (as if Lucy drew it)"},{"code":"C2","key":"Sam's usual (category answer)"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Sam (only on S4s)"},{"code":"C5","key":"2 of the 3 S1s were C5 (shape-based answer)"}]},{"id":"T16","test_type":"classic_disagree","kid":"Ana","shape":"S4","prompt":"Ana made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C3","ans_within_conjunction":"C4","ans_shape_based":"C4","ans_as_if_other_kid":"NA","diagnostic_for":"category summary vs within-category conditioning","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual (category answer)"},{"code":"C4","key":"3 of Ana's 3 S4s (conjunction answer)"},{"code":"C5","key":"never used by Ana (only on S1s and S2s)"}]},{"id":"T17","test_type":"agree","kid":"Ana","shape":"S3","prompt":"Ana made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C3","ans_within_conjunction":"C3","ans_shape_based":"mixed","ans_as_if_other_kid":"NA","diagnostic_for":"learning/attention check","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual, and all of Ana's S3s"},{"code":"C4","key":"Ana's other color (3 of 8, all S4s)"},{"code":"C5","key":"never used by Ana (only on S1s and S2s)"}]},{"id":"T18","test_type":"kid_not_named","kid":"none","shape":"S1","prompt":"Someone made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C1 (if Lucy is guessed)","ans_within_conjunction":"NA","ans_shape_based":"C5","ans_as_if_other_kid":"NA","diagnostic_for":"uncertain kid: guess Lucy and use the usual color vs shape-based","options":[{"code":"C1","key":"Lucy's usual (guess Lucy, use Lucy's usual color)"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never on an S1"},{"code":"C5","key":"2 of the 3 S1s were C5 (shape-based answer)"}]},{"id":"T19","test_type":"kid_not_named","kid":"none","shape":"S2","prompt":"Someone made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"C2 (if Sam is guessed)","ans_within_conjunction":"NA","ans_shape_based":"C5","ans_as_if_other_kid":"NA","diagnostic_for":"uncertain kid: guess Sam and use the usual color vs shape-based","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's usual (guess Sam, use Sam's usual color)"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never on an S2"},{"code":"C5","key":"2 of the 3 S2s were C5 (shape-based answer)"}]},{"id":"T20","test_type":"kid_not_named","kid":"none","shape":"S3","prompt":"Someone made this new drawing.","question":"What color do you think it is?","response_type":"color","figure_color":"","correct_answer":"","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"mixed","ans_as_if_other_kid":"NA","diagnostic_for":"control: shape drawn by every kid, each in their usual color","options":[{"code":"C1","key":"Lucy's usual color (all of Lucy's S3s)"},{"code":"C2","key":"Sam's usual color (all of Sam's S3s)"},{"code":"C3","key":"Ana's usual color (all of Ana's S3s)"},{"code":"C4","key":"never on an S3"},{"code":"C5","key":"never on an S3"}]},{"id":"T21","test_type":"who_drew","kid":"none","shape":"S1","prompt":"You saw this drawing earlier.","question":"Who drew this?","response_type":"kid","figure_color":"C5","correct_answer":"Lucy","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for who drew Lucy's S1s","options":[{"code":"Lucy","key":"correct"},{"code":"Sam","key":"never drew an S1"},{"code":"Ana","key":"never drew an S1"}]},{"id":"T22","test_type":"who_drew","kid":"none","shape":"S3","prompt":"You saw this drawing earlier.","question":"Who drew this?","response_type":"kid","figure_color":"C1","correct_answer":"Lucy","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for who drew Lucy's S3s","options":[{"code":"Lucy","key":"correct"},{"code":"Sam","key":"also drew S3s, but in C2"},{"code":"Ana","key":"also drew S3s, but in C3"}]},{"id":"T23","test_type":"who_drew","kid":"none","shape":"S2","prompt":"You saw this drawing earlier.","question":"Who drew this?","response_type":"kid","figure_color":"C5","correct_answer":"Sam","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for who drew Sam's S2s","options":[{"code":"Lucy","key":"never drew an S2"},{"code":"Sam","key":"correct"},{"code":"Ana","key":"never drew an S2"}]},{"id":"T24","test_type":"who_drew","kid":"none","shape":"S3","prompt":"You saw this drawing earlier.","question":"Who drew this?","response_type":"kid","figure_color":"C2","correct_answer":"Sam","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for who drew Sam's S3s","options":[{"code":"Lucy","key":"also drew S3s, but in C1"},{"code":"Sam","key":"correct"},{"code":"Ana","key":"also drew S3s, but in C3"}]},{"id":"T25","test_type":"who_drew","kid":"none","shape":"S4","prompt":"You saw this drawing earlier.","question":"Who drew this?","response_type":"kid","figure_color":"C4","correct_answer":"Ana","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for who drew Ana's S4s","options":[{"code":"Lucy","key":"never drew an S4"},{"code":"Sam","key":"never drew an S4"},{"code":"Ana","key":"correct"}]},{"id":"T26","test_type":"who_drew","kid":"none","shape":"S3","prompt":"You saw this drawing earlier.","question":"Who drew this?","response_type":"kid","figure_color":"C3","correct_answer":"Ana","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for who drew Ana's S3s","options":[{"code":"Lucy","key":"also drew S3s, but in C1"},{"code":"Sam","key":"also drew S3s, but in C2"},{"code":"Ana","key":"correct"}]},{"id":"T27","test_type":"memory_probe","kid":"Lucy","shape":"S1","prompt":"Lucy drew this shape earlier.","question":"What color did Lucy use for this shape?","response_type":"color","figure_color":"","correct_answer":"C5","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for the color of Lucy's S1s","options":[{"code":"C1","key":"Lucy's color on 1 of 3 S1s"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Lucy on an S1"},{"code":"C5","key":"correct: 2 of Lucy's 3 S1s"}]},{"id":"T28","test_type":"memory_probe","kid":"Lucy","shape":"S3","prompt":"Lucy drew this shape earlier.","question":"What color did Lucy use for this shape?","response_type":"color","figure_color":"","correct_answer":"C1","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for the color of Lucy's S3s","options":[{"code":"C1","key":"correct: all 5 of Lucy's 5 S3s"},{"code":"C2","key":"Sam's usual color"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Lucy on an S3"},{"code":"C5","key":"never used by Lucy on an S3"}]},{"id":"T29","test_type":"memory_probe","kid":"Sam","shape":"S2","prompt":"Sam drew this shape earlier.","question":"What color did Sam use for this shape?","response_type":"color","figure_color":"","correct_answer":"C5","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for the color of Sam's S2s","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"Sam's color on 1 of 3 S2s"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Sam on an S2"},{"code":"C5","key":"correct: 2 of Sam's 3 S2s"}]},{"id":"T30","test_type":"memory_probe","kid":"Sam","shape":"S3","prompt":"Sam drew this shape earlier.","question":"What color did Sam use for this shape?","response_type":"color","figure_color":"","correct_answer":"C2","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for the color of Sam's S3s","options":[{"code":"C1","key":"Lucy's usual color"},{"code":"C2","key":"correct: all 5 of Sam's 5 S3s"},{"code":"C3","key":"Ana's usual color"},{"code":"C4","key":"never used by Sam on an S3"},{"code":"C5","key":"never used by Sam on an S3"}]},{"id":"T31","test_type":"most_frequent_shape","kid":"Lucy","shape":"none","prompt":"","question":"Which shape did Lucy draw most often?","response_type":"shape","figure_color":"","correct_answer":"S3","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for Lucy's most frequent shape","options":[{"code":"S1","key":"Lucy's other shape (3 of 8)"},{"code":"S2","key":"never drawn by Lucy"},{"code":"S3","key":"correct: 5 of Lucy's 8"},{"code":"S4","key":"never drawn by Lucy"}]},{"id":"T32","test_type":"most_frequent_shape","kid":"Sam","shape":"none","prompt":"","question":"Which shape did Sam draw most often?","response_type":"shape","figure_color":"","correct_answer":"S3","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for Sam's most frequent shape","options":[{"code":"S1","key":"never drawn by Sam"},{"code":"S2","key":"Sam's other shape (3 of 8)"},{"code":"S3","key":"correct: 5 of Sam's 8"},{"code":"S4","key":"never drawn by Sam"}]},{"id":"T33","test_type":"most_frequent_shape","kid":"Ana","shape":"none","prompt":"","question":"Which shape did Ana draw most often?","response_type":"shape","figure_color":"","correct_answer":"S3","ans_category":"NA","ans_within_conjunction":"NA","ans_shape_based":"NA","ans_as_if_other_kid":"NA","diagnostic_for":"memory for Ana's most frequent shape","options":[{"code":"S1","key":"never drawn by Ana"},{"code":"S2","key":"never drawn by Ana"},{"code":"S3","key":"correct: 5 of Ana's 8"},{"code":"S4","key":"Ana's other shape (3 of 8)"}]}],"conditions":{"high_nameability":{"label":"High nameability","shapes":{"S1":{"d":"M53.5 27.5 L115.5 27.5 L115.5 86.5 L137.5 107.5 L139.5 29.5 L226.5 29.5 L226.5 34.5 L151.5 108.5 L191.5 148.5 L190.5 153.5 L149.5 153.5 L148.5 193.5 L144.5 193.5 L105.5 154.5 L32.5 228.5 L28.5 228.5 L28.5 143.5 L108.5 142.5 L80.5 116.5 L80.5 57.5 L59.5 34.5 L53.5 31.5 Z","w":2.37,"id":"high_shape13","num":13},"S2":{"d":"M27.5 28.5 L99.5 28.5 L100.5 73.5 L110.5 73.5 L152.5 32.5 L228.5 108.5 L228.5 220.5 L225.5 220.5 L159.5 151.5 L86.5 227.5 L81.5 227.5 L79.5 146.5 L61.5 128.5 L61.5 68.5 L43.5 47.5 L39.5 47.5 L39.5 43.5 L27.5 32.5 Z","w":2.5,"id":"high_shape1","num":1},"S3":{"d":"M168.5 81.5 L216.5 81.5 L216.5 84.5 L173.5 126.5 L185.5 127.5 L228.5 170.5 L228.5 173.5 L137.5 173.5 L91.5 127.5 L27.5 127.5 L27.5 123.5 L57.5 94.5 L92.5 94.5 L92.5 97.5 L108.5 110.5 L119.5 124.5 L124.5 125.5 Z","w":2.47,"id":"high_shape10","num":10},"S4":{"d":"M27.5 85.5 L72.5 85.5 L95.5 107.5 L181.5 107.5 L186.5 105.5 L186.5 96.5 L190.5 96.5 L228.5 139.5 L189.5 139.5 L186.5 142.5 L186.5 170.5 L158.5 145.5 L157.5 170.5 L153.5 170.5 L138.5 154.5 L83.5 154.5 L69.5 165.5 L68.5 154.5 L52.5 154.5 L52.5 151.5 L93.5 109.5 L47.5 108.5 Z","w":2.36,"id":"high_shape7","num":7}},"colors":{"C1":{"id":"high_color1","hex":"#DC1400"},"C2":{"id":"high_color4","hex":"#1E5AD2"},"C3":{"id":"high_color3","hex":"#FAF000"},"C4":{"id":"high_color2","hex":"#FA781E"},"C5":{"id":"high_color5","hex":"#821EB4"}}},"low_nameability":{"label":"Low nameability","shapes":{"S1":{"d":"M102.5 28.5 L110.5 28.5 L149.5 70.5 L148.5 76.5 L117.5 107.5 L138.5 111.5 L165.5 137.5 L195.5 138.5 L195.5 146.5 L165.5 173.5 L159.5 172.5 L134.5 147.5 L117.5 148.5 L147.5 178.5 L148.5 185.5 L108.5 227.5 L103.5 227.5 L100.5 219.5 L101.5 151.5 L60.5 149.5 L60.5 141.5 L76.5 127.5 L76.5 124.5 L60.5 111.5 L60.5 103.5 L97.5 104.5 L100.5 101.5 Z","w":3.93,"id":"low_shape13","num":13},"S2":{"d":"M98.5 60.5 L105.5 60.5 L140.5 97.5 L161.5 100.5 L190.5 129.5 L225.5 129.5 L227.5 136.5 L189.5 170.5 L182.5 168.5 L165.5 153.5 L164.5 194.5 L80.5 194.5 L28.5 143.5 L28.5 135.5 L97.5 132.5 Z","w":3.64,"id":"low_shape1","num":1},"S3":{"d":"M29.5 81.5 L121.5 81.5 L163.5 124.5 L225.5 124.5 L227.5 130.5 L197.5 159.5 L162.5 159.5 L130.5 130.5 L88.5 174.5 L40.5 174.5 L41.5 167.5 L77.5 131.5 L70.5 128.5 L28.5 88.5 Z","w":3.68,"id":"low_shape10","num":10},"S4":{"d":"M68.5 85.5 L77.5 85.5 L81.5 93.5 L97.5 108.5 L99.5 85.5 L105.5 85.5 L120.5 102.5 L167.5 102.5 L177.5 93.5 L183.5 92.5 L186.5 101.5 L199.5 103.5 L199.5 109.5 L166.5 144.5 L203.5 146.5 L227.5 164.5 L227.5 170.5 L178.5 170.5 L158.5 150.5 L76.5 150.5 L73.5 159.5 L67.5 160.5 L28.5 121.5 L28.5 115.5 L66.5 114.5 Z","w":3.78,"id":"low_shape7","num":7}},"colors":{"C1":{"id":"low_color1","hex":"#C8AAAA"},"C2":{"id":"low_color10","hex":"#325064"},"C3":{"id":"low_color2","hex":"#C86446"},"C4":{"id":"low_color3","hex":"#6E640A"},"C5":{"id":"low_color6","hex":"#DCF096"}}}}};
+const S = DATA.settings;
+const KIDS = [...new Set(DATA.training.map(r => r.kid))];
+const SHAPE_CODES = [...new Set(DATA.training.map(r => r.shape))].sort();
+const COLOR_CODES = [...new Set(DATA.training.map(r => r.color))].sort();
+const PREDICTION_TYPES = ["agree", "classic_disagree", "cross_category_conflict", "category_only", "kid_not_named"];
+const MEMORY_TYPES = ["who_drew", "memory_probe", "most_frequent_shape"];
+const TYPE_LABEL = {
+  agree: "agree", classic_disagree: "classic disagree", cross_category_conflict: "cross-category",
+  category_only: "category", kid_not_named: "kid not named",
+  who_drew: "who drew this?", memory_probe: "color memory", most_frequent_shape: "most frequent shape",
+};
+const TYPE_TESTS = {
+  agree: "A baseline and attention check. The kid's usual color is also the color they always used on this shape, so every way of reasoning gives the same answer.",
+  classic_disagree: "Whether people reason from the kid's category as a whole (the kid's usual color) or from what that kid did with this particular shape (the color they mostly used on it).",
+  cross_category_conflict: "Whether people reason from the given feature, the kid named as the drawer (that kid's usual color), or from the shape's broader association, treating the drawing as if the kid who normally draws that shape made it (that kid's usual color, or the color the shape usually had).",
+  category_only: "Whether people learned each kid's usual color, with no shape to pull them toward anything else.",
+  kid_not_named: "With no kid named, whether people infer the drawer from the shape and use that kid's usual color, or go by the color the shape itself usually had. S3 is a control, since every kid draws it.",
+  who_drew: "Memory for who drew a training drawing",
+  memory_probe: "Memory for the color a kid used on a shape",
+  most_frequent_shape: "Memory for which shape a kid drew most",
+};
+const CHECKS = {
+  kid: ["Who drew", "Who drew the last drawing?"],
+  color: ["What color", "What color was the last drawing?"],
+  shape: ["What shape", "What shape was the last drawing?"],
+};
+
+let condition = Object.keys(DATA.conditions)[0];
+let trialId = DATA.tests.find(t => t.test_type === "classic_disagree").id, pick = null, order = null;
+let trainOrder = [], trainPos = 0, checkType = "kid", checkPick = null;
+
+const $ = id => document.getElementById(id);
+const cond = () => DATA.conditions[condition];
+const hex = code => cond().colors[code].hex;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const tally = (rows, fn) => { const c = {}; rows.forEach(r => { const k = fn(r); c[k] = (c[k] || 0) + 1; }); return c; };
+const mode = c => Object.entries(c).sort((a, b) => b[1] - a[1])[0][0];
+const usual = Object.fromEntries(KIDS.map(k => [k, mode(tally(DATA.training.filter(r => r.kid === k), r => r.color))]));
+
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// Shapes are the traced outlines the experiment shows; thin lines get a
+// minimum on-screen thickness so thumbnails stay legible.
+function fig(shape, fill, size, rotation) {
+  const s = cond().shapes[shape];
+  const w = Math.max(s.w, 1.1 * 256 / size);
+  return `<svg class="fig" viewBox="0 0 256 256" width="${size}" height="${size}" aria-hidden="true"><path d="${s.d}" fill="${fill || "#FFFFFF"}" stroke="#2A2A2A" stroke-width="${w.toFixed(2)}" stroke-linejoin="round" transform="rotate(${rotation || 0} 128 128)"/></svg>`;
+}
+
+function pillClass(key) {
+  if (/^correct/.test(key)) return "p-link";
+  if (/category answer|usual, and all/.test(key)) return "p-cat";
+  if (/conjunction/.test(key)) return "p-conj";
+  if (/shape-based/.test(key)) return "p-link";
+  if (/as if|guess/.test(key)) return "p-reas";
+  return "p-foil";
+}
+
+// One answer option: color swatch, shape outline or kid name, with its code
+// and answer-key pill underneath when the key is on.
+function optionHTML(type, code, pressed, key, pos) {
+  const showKey = $("keyT").checked;
+  let btn;
+  if (type === "color") btn = `<button class="sw" data-code="${code}" aria-pressed="${pressed}" style="background:${hex(code)}" aria-label="Color option ${pos + 1}${showKey ? `, ${code}` : ""}"></button>`;
+  else if (type === "shape") btn = `<button class="shape-opt" data-code="${code}" aria-pressed="${pressed}" aria-label="Shape option ${pos + 1}${showKey ? `, ${code}` : ""}">${fig(code, null, 64)}</button>`;
+  else btn = `<button class="name-opt" data-code="${esc(code)}" aria-pressed="${pressed}">${esc(code)}</button>`;
+  const extra = showKey ? `${type !== "kid" ? `<div class="code">${code}</div>` : ""}${key ? `<div class="pill ${pillClass(key)}">${esc(key)}</div>` : ""}` : "";
+  return `<div class="opt">${btn}${extra}</div>`;
+}
+
+function renderIntro() {
+  const nPred = DATA.tests.filter(t => PREDICTION_TYPES.includes(t.test_type)).length;
+  $("headSub").textContent = `A walkthrough of the pilot 2 session: three kids, four shapes, five colors. Participants see the ${DATA.training.length} training drawings ${S.trainingBlocks} times with attention checks, then ${DATA.tests.length} test trials (${nPred} predictions about new drawings and ${DATA.tests.length - nPred} memory questions). Turn on the answer key to see which strategy each choice reflects.`;
+  const drawMin = Math.round(S.trainingBlocks * DATA.training.length * (S.drawingMs + S.gapMs) / 6000) / 10;
+  $("steps").innerHTML = [
+    "Setup: subject code, random seed, nameability condition (between-subject), questionnaire order.",
+    "Instructions (3 pages); the researcher presses Q to start.",
+    `Training: ${S.trainingBlocks} blocks of ${DATA.training.length} drawings + ${S.checksPerBlock} attention checks (drawings timed, ~${drawMin} min in total).`,
+    `Test: ${DATA.tests.length} self-paced trials, prediction and memory shuffled together.`,
+    "FIT and IRQ questionnaires, in the order chosen at setup.",
+    "Redirect to the final Qualtrics survey.",
+  ].map(s => `<li>${s}</li>`).join("");
+}
+
+function renderLegend() {
+  const t = DATA.training;
+  $("colLegend").innerHTML = COLOR_CODES.map(c => {
+    const owner = KIDS.find(k => usual[k] === c);
+    const uses = [];
+    KIDS.forEach(k => SHAPE_CODES.forEach(s => {
+      const mine = t.filter(r => r.kid === k && r.shape === s);
+      const n = mine.filter(r => r.color === c).length;
+      if (n && owner !== k) uses.push(`${n === mine.length ? "all" : n} of ${k}’s ${mine.length} ${s}s`);
+    }));
+    const role = owner ? `${owner}’s usual color` : `Used on ${uses.join(" and ")}`;
+    return `<div class="leg-row"><span class="leg-sw" style="background:${hex(c)}"></span><span class="leg-code">${c}</span><span>${role}</span></div>`;
+  }).join("");
+  $("shapeLegend").innerHTML = SHAPE_CODES.map(s => {
+    const rows = t.filter(r => r.shape === s);
+    const drawers = [...new Set(rows.map(r => r.kid))];
+    const colors = tally(rows, r => r.color);
+    const role = drawers.length === KIDS.length
+      ? "Drawn by every kid in their usual color"
+      : `${drawers.join(", ")} only, ${Object.keys(colors).length === 1 ? `always ${mode(colors)}` : `mostly ${mode(colors)}`}`;
+    return `<div class="leg-row"><span class="leg-shape">${fig(s, null, 34)}</span><span class="leg-code">${s}</span><span>${role} (shape ${cond().shapes[s].num})</span></div>`;
+  }).join("");
+}
+
+// ---- Training ----
+function newTrainOrder() {
+  trainOrder = shuffle(DATA.training.map((_, i) => ({ i, r: Math.round((Math.random() * 2 - 1) * S.maxRotation) })));
+  trainPos = 0; checkPick = null;
+}
+function renderTrain() {
+  $("trainNote").textContent = `Participants see one drawing at a time with the kid’s name (${S.drawingMs / 1000} s each, ${S.gapMs / 1000} s gap). Each training block shows all ${DATA.training.length} drawings once in a new random order, for ${S.trainingBlocks} blocks. Every drawing gets a small random tilt (up to ±${S.maxRotation}°) so repeats aren’t identical.`;
+  const cur = trainOrder[trainPos], it = DATA.training[cur.i];
+  $("trainFig").innerHTML = fig(it.shape, hex(it.color), 170, cur.r);
+  $("trainCap").textContent = `${it.kid} drew this.`;
+  $("trainCount").textContent = `Drawing ${trainPos + 1} of ${DATA.training.length}`;
+  $("kids").innerHTML = KIDS.map(kid => {
+    const mine = DATA.training.filter(x => x.kid === kid).sort((a, b) => a.shape.localeCompare(b.shape));
+    const n = mine.filter(x => x.color === usual[kid]).length;
+    return `<div class="kid"><div class="name">${kid}’s drawings</div><div class="figs">${mine.map(x => fig(x.shape, hex(x.color), 46)).join("")}</div><div class="stat">Usual color: ${usual[kid]} on ${n} of ${mine.length}</div></div>`;
+  }).join("");
+  renderCheck(it);
+}
+function renderCheck(it) {
+  const split = [0, 1, 2].map(i => Math.floor((S.checksPerBlock + 2 - i) / 3)).join("/");
+  $("checkNote").textContent = `After ${S.checksPerBlock} randomly chosen drawings in each block, participants answer one question about the drawing they just saw. The three question types are split ${split} within a block, rotating which type gets fewer. Shown here for the drawing above.`;
+  $("checkTabs").innerHTML = Object.entries(CHECKS).map(([c, [label]]) => `<button data-c="${c}" aria-pressed="${c === checkType}">${label}</button>`).join("");
+  $("checkTabs").querySelectorAll("button").forEach(b => b.onclick = () => { checkType = b.dataset.c; checkPick = null; renderTrain(); });
+  $("checkQ").textContent = CHECKS[checkType][1];
+  const codes = checkType === "kid" ? KIDS : checkType === "color" ? COLOR_CODES : SHAPE_CODES;
+  $("checkOpts").innerHTML = codes.map((c, pos) => optionHTML(checkType, c, checkPick === c, c === it[checkType] ? "correct" : "", pos)).join("");
+  $("checkOpts").querySelectorAll("button").forEach(b => b.onclick = () => { checkPick = b.dataset.code; renderTrain(); });
+}
+
+// ---- Test ----
+function trialLabel(t) {
+  if (t.test_type === "who_drew") return `${t.shape} in ${t.figure_color}`;
+  if (t.test_type === "most_frequent_shape") return t.kid;
+  if (t.test_type === "memory_probe") return `${t.kid} + ${t.shape}`;
+  // Same labels as the advisor's demo: "Lucy + S1 (...)", "Lucy only (...)", "S4 only (...)".
+  const who = t.kid !== "none" ? t.kid : null, shape = t.shape !== "none" ? t.shape : null;
+  return `${who && shape ? `${who} + ${shape}` : `${who || shape} only`} (${TYPE_LABEL[t.test_type]})`;
+}
+function renderTrialList() {
+  const kidOf = t => (t.kid !== "none" ? t.kid : "No kid named");
+  const pred = DATA.tests.filter(t => PREDICTION_TYPES.includes(t.test_type));
+  $("predTrials").innerHTML = [...KIDS, "No kid named"].map(g => `<div class="tgroup"><div class="gname">${g}</div>${pred.filter(t => kidOf(t) === g).map(t => `<button data-id="${t.id}" aria-pressed="${t.id === trialId}">${trialLabel(t)}</button>`).join("")}</div>`).join("");
+  $("memTrials").innerHTML = MEMORY_TYPES.map(type => `<div class="tgroup"><div class="gname">${TYPE_LABEL[type][0].toUpperCase() + TYPE_LABEL[type].slice(1)}</div>${DATA.tests.filter(t => t.test_type === type).map(t => `<button data-id="${t.id}" aria-pressed="${t.id === trialId}">${trialLabel(t)}</button>`).join("")}</div>`).join("");
+  document.querySelectorAll("#predTrials button, #memTrials button").forEach(b => b.onclick = () => { trialId = b.dataset.id; pick = null; order = null; renderTrialList(); renderTest(); });
+}
+function renderTest() {
+  $("testNote").textContent = `Pick a trial, then click an option. On color questions the drawing fills in with the color you pick. In the experiment all ${DATA.tests.length} trials are shuffled together, the options are shuffled on every trial, and test drawings get their own random tilt.`;
+  const t = DATA.tests.find(x => x.id === trialId), showKey = $("keyT").checked;
+  if (!order) order = $("shufT").checked ? shuffle(t.options.map((_, i) => i)) : t.options.map((_, i) => i);
+  $("prompt").textContent = t.prompt;
+  $("prompt").hidden = !t.prompt;
+  $("question").textContent = t.question;
+  let figure = "";
+  if (t.test_type === "who_drew") figure = fig(t.shape, hex(t.figure_color), 170, 3);
+  else if (t.shape !== "none") figure = fig(t.shape, t.response_type === "color" && pick ? hex(pick) : null, 170, -4);
+  else if (t.test_type === "category_only") figure = `<div class="hidden-shape"></div>`;
+  $("testFig").innerHTML = figure;
+  $("testFig").hidden = !figure;
+  $("swatches").innerHTML = order.map((i, pos) => optionHTML(t.response_type, t.options[i].code, pick === t.options[i].code, t.options[i].key, pos)).join("");
+  $("swatches").querySelectorAll("button").forEach(b => b.onclick = () => { pick = b.dataset.code; renderTest(); });
+
+  const parts = [`${t.id}, ${TYPE_LABEL[t.test_type]}: ${t.diagnostic_for}.`];
+  if (t.correct_answer) parts.push(`Correct answer: ${t.correct_answer}.`);
+  $("meta").textContent = parts.join(" ");
+  $("meta").hidden = !showKey;
+}
+
+function renderCounts() {
+  const row = (label, tests, which, n) => `<tr><td>${label}</td><td>${tests}</td><td>${which}</td><td class="n">${n}</td></tr>`;
+  const listOf = type => DATA.tests.filter(t => t.test_type === type).map(t => trialLabel(t).replace(/ \(.*\)$/, "")).join(", ");
+  const split = [0, 1, 2].map(i => Math.floor((S.checksPerBlock + 2 - i) / 3)).join("/");
+  const typeRows = types => types.map(type => row(TYPE_LABEL[type][0].toUpperCase() + TYPE_LABEL[type].slice(1), TYPE_TESTS[type], listOf(type), DATA.tests.filter(t => t.test_type === type).length)).join("");
+  const nPred = DATA.tests.filter(t => PREDICTION_TYPES.includes(t.test_type)).length;
+  $("counts").innerHTML = `<thead><tr><th>Type</th><th>What it tests</th><th>Trials</th><th class="n">Count</th></tr></thead><tbody>
+    <tr class="phase"><td colspan="4">Training (${S.trainingBlocks} blocks)</td></tr>
+    ${row("Training drawing", "Learning the three kids’ drawings", `All ${DATA.training.length} drawings, once per block`, S.trainingBlocks * DATA.training.length)}
+    ${row("Attention check", "Who drew / what color / what shape was the last drawing", `${S.checksPerBlock} per block, split ${split}`, S.trainingBlocks * S.checksPerBlock)}
+    <tr class="total"><td colspan="3">Training total</td><td class="n">${S.trainingBlocks * (DATA.training.length + S.checksPerBlock)}</td></tr>
+    <tr class="phase"><td colspan="4">Test: prediction trials</td></tr>
+    ${typeRows(PREDICTION_TYPES)}
+    <tr class="total"><td colspan="3">Prediction total</td><td class="n">${nPred}</td></tr>
+    <tr class="phase"><td colspan="4">Test: memory questions</td></tr>
+    ${typeRows(MEMORY_TYPES)}
+    <tr class="total"><td colspan="3">Memory total</td><td class="n">${DATA.tests.length - nPred}</td></tr>
+  </tbody>`;
+  $("demoNote").textContent = `Demo mode (?demo=true) runs ${S.demoDrawings} drawings with one attention check of each type, then ${S.demoTests} test trials that always include every test type.`;
+}
+
+function renderCond() {
+  $("condSeg").innerHTML = Object.entries(DATA.conditions).map(([k, c]) => `<button data-k="${k}" aria-pressed="${k === condition}">${c.label}</button>`).join("");
+  $("condSeg").querySelectorAll("button").forEach(b => b.onclick = () => { condition = b.dataset.k; renderAll(); });
+}
+function renderAll() { renderCond(); renderLegend(); renderTrain(); renderTest(); }
+
+$("keyT").onchange = () => { renderTrain(); renderTest(); };
+$("shufT").onchange = () => { order = null; renderTest(); };
+$("prev").onclick = () => { trainPos = (trainPos - 1 + trainOrder.length) % trainOrder.length; checkPick = null; renderTrain(); };
+$("next").onclick = () => { trainPos = (trainPos + 1) % trainOrder.length; checkPick = null; renderTrain(); };
+$("reshuf").onclick = () => { newTrainOrder(); renderTrain(); };
+
+newTrainOrder();
+renderIntro();
+renderTrialList();
+renderCounts();
+renderAll();
+</script>
+</body>
+</html>

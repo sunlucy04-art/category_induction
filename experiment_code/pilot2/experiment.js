@@ -8,11 +8,11 @@
      questionnaires at the end (0: IRQ then FIT, or 1: FIT then IRQ) — any
      of these can also be pre-filled via URL params.
   2. Reads training_trials.csv and test_trials.csv (made by
-     generate_design.py) and picks one design version of this participant's
-     condition. All randomization (design version, training and test order,
-     one-back check placement, answer option order, drawing jitter,
-     questionnaire item order) is driven by the seed entered at setup, so
-     the same seed reproduces the same session.
+     generate_design.py) and keeps this participant's condition. All
+     randomization (training and test order, one-back check placement,
+     answer option order, drawing jitter, questionnaire item order) is
+     driven by the seed entered at setup, so the same seed reproduces the
+     same session.
   3. Runs the induction task: training shows the 24 drawings one at a time
      with the kid's name, cycled TRAINING_BLOCKS times, with one-back
      attention checks after some drawings. Then the test phase mixes
@@ -60,6 +60,11 @@ const ONE_BACK_CHECKS_PER_BLOCK = 8;
 const JITTER_MAX_ROTATION_DEG = 8;
 const JITTER_MIN_SCALE = 1;
 const JITTER_MAX_SCALE = 1;
+
+// Kid names used only in the illustrated instructions and practice, so the
+// examples never use the real kids (or, via each condition's
+// instruction_examples images, the real shapes and colors).
+const INSTRUCTION_KIDS = ["Max", "Zoe", "Ben"];
 
 // From your pipe at https://pipe.jspsych.org — every participant's data
 // gets uploaded to whatever OSF project that pipe is linked to. The same
@@ -724,13 +729,13 @@ function oneBackSchedule(nDrawings, count, typeOrder) {
 
 function buildTestTrial(row, trialNum) {
   const jitter = randomJitter();
-  // category_only trials name the kid but don't show a shape;
-  // most_frequent_shape trials show no drawing at all.
+  // category_only trials name the kid but show only a blank space where
+  // the drawing would be; most_frequent_shape trials show no drawing at all.
   let figure = "";
   if (row.figure_image) {
     figure = drawingHTML(row.figure_image, jitter);
   } else if (row.test_type === "category_only") {
-    figure = `<div class="hidden-shape">Shape not shown</div>`;
+    figure = `<div class="hidden-shape"></div>`;
   }
 
   return buildChoiceTrial(
@@ -781,30 +786,119 @@ function buildInductionCleanCSV(columns) {
   return Papa.unparse(rows);
 }
 
-function buildInstructions(kids) {
+// Answer options drawn as they look in the trials, but not clickable, for
+// the illustrated instruction pages.
+function exampleOptionsHTML(responseType, items) {
+  return `<div class="example-options">${items.map(function(item) {
+    if (responseType === "kid") {
+      return `<span class="jspsych-btn name-btn">${item}</span>`;
+    }
+    const imgClass = responseType === "color" ? "swatch-img" : "shape-option-img";
+    return `<span class="jspsych-btn option-btn"><img class="${imgClass}" src="${item}"></span>`;
+  }).join("")}</div>`;
+}
+
+function exampleImages(exampleDir) {
+  return {
+    drawingA: `${exampleDir}/shapeA_ex1.svg`,
+    drawingB: `${exampleDir}/shapeB_ex3.svg`,
+    outlineA: `${exampleDir}/shapeA.svg`,
+    outlineB: `${exampleDir}/shapeB.svg`,
+    swatches: [1, 2, 3, 4, 5].map(function(i) { return `${exampleDir}/ex${i}.svg`; }),
+  };
+}
+
+function buildPracticeDrawing(src, kid) {
+  return {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+      <div class="page drawing-page">
+        ${drawingHTML(src, randomJitter())}
+        <p class="drawing-caption"><b>${kid}</b> drew this.</p>
+      </div>
+    `,
+    choices: "NO_KEYS",
+    trial_duration: TRAINING_DRAWING_MS,
+    post_trial_gap: TRAINING_GAP_MS,
+    data: { screen: "practice_drawing" },
+  };
+}
+
+// Illustrated instructions built up piece by piece (as in pilot 1), then a
+// short clickable practice. Examples use kids, shapes and colors that never
+// appear in the real trials (INSTRUCTION_KIDS and the condition's
+// instruction_examples images). Practice answers are not saved as
+// induction data.
+function buildInstructions(kids, exampleDir) {
+  const [kidA, kidB, kidC] = INSTRUCTION_KIDS;
+  const ex = exampleImages(exampleDir);
+  const noJitter = { rotation: 0, scale: 1 };
+
   const introPages = {
     type: jsPsychInstructions,
     pages: [
       `
         <div class="instructions-block">
           <h2>Welcome</h2>
-          <p>In this experiment, you will see drawings made by three kids: ${listNames(kids)}. Each drawing is a simple shape colored in with one color.</p>
+          <p>In this experiment, you will see drawings made by three kids. Each drawing is a simple shape colored in with one color.</p>
+          <p>The next few pages show examples. The examples use different kids, shapes and colors from the ones in the study.</p>
+          <p>Click "Next" to see an example.</p>
+        </div>
+      `,
+      `
+        <div class="instructions-block">
+          <p>First, you will see the kids' drawings, one at a time, along with the name of the kid who drew it. For example:</p>
+          ${drawingHTML(ex.drawingA, noJitter)}
+          <p class="drawing-caption"><b>${kidA}</b> drew this.</p>
+          <p>Each drawing is only on the screen for a few seconds, so pay close attention to who made it and how they colored it.</p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>First, you will see the kids' drawings, one at a time, along with the name of the kid who drew it.</p>
-          <p>Pay close attention to each drawing. Every so often, you will be asked a quick question about the drawing you just saw.</p>
+          <p>Every so often, you will be asked a quick question about the drawing you just saw. For example, right after ${kidA}'s drawing you might see:</p>
+          <p class="drawing-caption">Who drew the last drawing?</p>
+          ${exampleOptionsHTML("kid", [kidB, kidA, kidC])}
+          <p>Other times you will be asked what color or what shape the last drawing was. Click your answer to move on.</p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>After that, you will answer questions about the kids' drawings.</p>
-          <p>Some questions are about drawings you saw. Others are about new drawings the kids made, where you will choose the color you think the new drawing is.</p>
-          <p>Sometimes you won't be shown the shape, or won't be told who made the drawing. Just make your best guess.</p>
+          <p>After you have seen all of the drawings, you will answer questions about them. Some questions show you the outline of a new drawing and ask you to guess its color. For example:</p>
+          <p class="drawing-caption"><b>${kidB}</b> made this new drawing.</p>
+          ${drawingHTML(ex.outlineB, noJitter)}
+          <p class="drawing-caption">What color do you think it is?</p>
+          ${exampleOptionsHTML("color", ex.swatches)}
+          <p>You would click the color you think ${kidB} used.</p>
           <p>Click "Next" to continue.</p>
+        </div>
+      `,
+      `
+        <div class="instructions-block">
+          <p>Sometimes you won't be shown the shape. For example, you might see "<b>${kidA}</b> made a new drawing." with no drawing at all.</p>
+          <p>Other times you won't be told who made the drawing: "Someone made this new drawing."</p>
+          <p>There are no right or wrong answers to these questions. Just make your best guess.</p>
+          <p>Click "Next" to continue.</p>
+        </div>
+      `,
+      `
+        <div class="instructions-block">
+          <p>Other questions ask about drawings you already saw. For example:</p>
+          <p class="drawing-caption">You saw this drawing earlier.</p>
+          ${drawingHTML(ex.drawingA, noJitter)}
+          <p class="drawing-caption">Who drew this?</p>
+          ${exampleOptionsHTML("kid", [kidB, kidA, kidC])}
+          <p>You might also be asked what color a kid used for a shape, or which shape a kid drew most often.</p>
+          <p>Click "Next" to continue.</p>
+        </div>
+      `,
+      `
+        <div class="instructions-block">
+          <h2>Practice</h2>
+          <p>Let's practice. You will see two example drawings, a quick question about the last one, and a question about a new drawing.</p>
+          <p>Your practice answers won't count.</p>
+          <p>Click "Next" to start the practice.</p>
         </div>
       `,
     ],
@@ -813,6 +907,43 @@ function buildInstructions(kids) {
     key_backward: "ArrowLeft",
     data: { screen: "induction_instructions" },
   };
+
+  const practice = [
+    buildPracticeDrawing(ex.drawingA, kidA),
+    buildPracticeDrawing(ex.drawingB, kidB),
+    buildChoiceTrial(
+      `<div class="page drawing-page"><p class="drawing-caption">${ONE_BACK_QUESTIONS.kid}</p></div>`,
+      "kid",
+      INSTRUCTION_KIDS.map(function(kid) { return { code: kid, id: kid, image: "" }; }),
+      kidB,
+      { screen: "practice_check" }
+    ),
+    buildChoiceTrial(
+      `
+        <div class="page drawing-page">
+          <p class="drawing-caption"><b>${kidA}</b> made this new drawing.</p>
+          ${drawingHTML(ex.outlineA, randomJitter())}
+          <p class="drawing-caption">What color do you think it is?</p>
+        </div>
+      `,
+      "color",
+      ex.swatches.map(function(src, i) { return { code: `ex${i + 1}`, id: `ex${i + 1}`, image: src }; }),
+      "",
+      { screen: "practice_test" }
+    ),
+    {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="instructions-block">
+          <p>That's the end of the practice.</p>
+          <p>In the study, there will be more drawings and more questions, and the drawings will be made by different kids.</p>
+        </div>
+      `,
+      choices: "NO_KEYS",
+      trial_duration: 4000,
+      data: { screen: "practice_end" },
+    },
+  ];
 
   // Researcher gate: participants can't advance past this page on their own.
   // Only the researcher's "q" key moves on (not shown to participants).
@@ -832,6 +963,7 @@ function buildInstructions(kids) {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
       <div class="instructions-block">
+        <p>In this study, you will see drawings made by ${listNames(kids)}.</p>
         <p>Press any key to begin the study.</p>
       </div>
     `,
@@ -839,19 +971,21 @@ function buildInstructions(kids) {
     data: { screen: "induction_start" },
   };
 
-  return [introPages, closingPage, startPage];
+  return [introPages, ...practice, closingPage, startPage];
 }
 
 // trainingBlocks: one shuffled array of training rows per training block.
 // checksPerBlock: one-back checks in each training block.
 // test: the shuffled test rows.
-function buildInductionTimeline(trainingBlocks, checksPerBlock, test, columns) {
+// exampleDir: this condition's instruction_examples image folder.
+function buildInductionTimeline(trainingBlocks, checksPerBlock, test, columns, exampleDir) {
   const timeline = [];
   const allTraining = trainingBlocks.flat();
   const options = designOptions(allTraining);
   const kids = options.kid.map(function(option) { return option.id; });
 
-  const images = [];
+  const ex = exampleImages(exampleDir);
+  const images = [ex.drawingA, ex.drawingB, ex.outlineA, ex.outlineB, ...ex.swatches];
   allTraining.forEach(function(row) { images.push(row.image, row.color_image, row.shape_image); });
   test.forEach(function(row) {
     if (row.figure_image) images.push(row.figure_image);
@@ -862,7 +996,7 @@ function buildInductionTimeline(trainingBlocks, checksPerBlock, test, columns) {
     images: [...new Set(images)],
   });
 
-  timeline.push(...buildInstructions(kids));
+  timeline.push(...buildInstructions(kids, exampleDir));
 
   // trial_num is the presentation order within each training block, or
   // within the test phase; id stays the trial list's ID for that row.
@@ -1005,8 +1139,8 @@ async function runExperiment() {
   const urlParams = new URLSearchParams(window.location.search);
   const { subjectID, seed, condition, demoMode, questionnaireOrder } = await promptForParameters(urlParams);
 
-  // Seed every jsPsych.randomization call and Math.random (design version,
-  // trial order, option order, drawing jitter, questionnaire item order) so
+  // Seed every jsPsych.randomization call and Math.random (trial order,
+  // option order, drawing jitter, questionnaire item order) so
   // the same seed reproduces the same session.
   jsPsych.randomization.setSeed(seed);
 
@@ -1031,20 +1165,14 @@ async function runExperiment() {
     readCSV(TEST_CSV),
   ]);
 
-  // One design version of this condition (which shapes/colors fill the
-  // demo's roles), picked by the setup seed.
-  const designs = [...new Set(trainingList
-    .filter(function(row) { return row.condition === condition; })
-    .map(function(row) { return row.design; }))];
-  const design = jsPsych.randomization.sampleWithoutReplacement(designs, 1)[0];
-  jsPsych.data.addProperties({ design: design });
-
-  const training = trainingList.filter(function(row) { return row.design === design; });
+  // Each condition has one fixed design (which shapes/colors fill the
+  // demo's roles), as in the advisor's demo.
+  const training = trainingList.filter(function(row) { return row.condition === condition; });
   let trainingBlocks = Array.from({ length: TRAINING_BLOCKS }, function() {
     return jsPsych.randomization.shuffle(training);
   });
   let checksPerBlock = ONE_BACK_CHECKS_PER_BLOCK;
-  let test = jsPsych.randomization.shuffle(testList.filter(function(row) { return row.design === design; }));
+  let test = jsPsych.randomization.shuffle(testList.filter(function(row) { return row.condition === condition; }));
   if (demoMode) {
     trainingBlocks = [trainingBlocks[0].slice(0, DEMO_TRAINING_COUNT)];
     checksPerBlock = DEMO_CHECKS;
@@ -1060,7 +1188,10 @@ async function runExperiment() {
   }
 
   const timeline = [];
-  timeline.push(...buildInductionTimeline(trainingBlocks, checksPerBlock, test, inductionCSVColumns(trainingList, testList)));
+  timeline.push(...buildInductionTimeline(
+    trainingBlocks, checksPerBlock, test, inductionCSVColumns(trainingList, testList),
+    `images/${condition}/instruction_examples`
+  ));
 
   // FIT and IRQ questionnaires: always run in full, whether or not demo mode
   // is on, each saving to its own "<subjCode>_FIT.csv" / "<subjCode>_IRQ.csv"
