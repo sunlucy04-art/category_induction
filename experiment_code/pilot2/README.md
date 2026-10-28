@@ -9,7 +9,7 @@ Nameability is **between-subject**: each participant is assigned to `high_nameab
 Every participant learns exactly the demo's three categories (Lucy, Sam, Ana) with the demo's structure (`advisor_demo/training_trials_1block.csv`): 4 shapes (S1–S4), 5 colors (C1–C5), 24 drawings.
 
 - **Training**: the 24 drawings, shown one at a time with "<kid> drew this." (2500 ms each, 500 ms gap), cycled through **4 training blocks**, each in a fresh random order (96 drawings).
-- **One-back attention checks**: after 25% of training drawings (6 per block), one question about the drawing just shown: "Who drew the last drawing?", "What color was the last drawing?" or "What shape was the last drawing?", with 2 of each type per block. No feedback.
+- **One-back attention checks**: 8 per training block, each placed after a randomly chosen drawing (24 drawings + 8 checks = 32 trials, a quarter of them checks). Each asks about the drawing just shown: "Who drew the last drawing?", "What color was the last drawing?" or "What shape was the last drawing?". Types are split 3/3/2 within a block, rotating which type gets 2 (11/11/10 over the 4 blocks). No feedback.
 - **Test**: 26 trials, all shuffled together:
   - the advisor's 13 (agree, classic disagree, cross-category conflict, category only, kid not named, and Ana's 2 memory probes)
   - **who_drew** (6): a drawing from training (each kid's shape in the color that kid mostly used for it); choose Lucy/Sam/Ana
@@ -27,6 +27,8 @@ Every participant learns exactly the demo's three categories (Lucy, Sam, Ana) wi
 | S4 | shape 7 | Ana only |
 
 **Design versions**: each condition has 2 versions that differ only in which color plays which role (C1–C5); no color keeps its role between versions. Each participant gets one version (picked by the seed). `design_versions.csv` lists which shape/color fills each role in each version.
+
+**Demo mode** (`?demo=true` or the setup checkbox): 10 learning trials (7 drawings + one check of each type), the pre-test instructions, then 15 test trials that always include at least one of every test type. The questionnaires still run in full.
 
 The FIT and IRQ questionnaires, per-section DataPipe saving, and the Qualtrics redirect work the same as in pilot 1.
 

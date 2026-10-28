@@ -47,10 +47,12 @@ const TRAINING_BLOCKS = 4;
 const TRAINING_DRAWING_MS = 2500;
 const TRAINING_GAP_MS = 500;
 
-// Share of training drawings followed by a one-back attention check (who
-// drew / what color / what shape was the last drawing), split evenly
-// across the three check types within each training block.
-const ONE_BACK_PROPORTION = 0.25;
+// One-back attention checks (who drew / what color / what shape was the
+// last drawing) per training block, each placed after a randomly chosen
+// drawing. 8 checks + 24 drawings = 32 trials, so a quarter are checks.
+// The three types are split as evenly as possible within a block (3/3/2),
+// rotating which type gets fewer from block to block.
+const ONE_BACK_CHECKS_PER_BLOCK = 8;
 
 // Range of the random rotation/scale applied to every drawing shown. Scale
 // is fixed at 1 (no size change): size variation made drawings of the same
@@ -72,12 +74,15 @@ const DATA_PIPE_EXPERIMENT_ID = "REPLACE_WITH_YOUR_DATAPIPE_ID";
 // redirecting.
 const QUALTRICS_URL = "https://uwmadison.co1.qualtrics.com/jfe/form/SV_24r43gqIML2igfk";
 
-// ?demo=true (or the setup screen's "Demo mode" checkbox) runs one training
-// block cut down to this many drawings, and this many test trials, so the
-// full pipeline — including every DataPipe upload and both questionnaires —
-// can be tested fast. The questionnaires always run in full regardless.
-const DEMO_TRAINING_COUNT = 8;
-const DEMO_TEST_COUNT = 4;
+// ?demo=true (or the setup screen's "Demo mode" checkbox) runs a short
+// version so the full pipeline — including every DataPipe upload and both
+// questionnaires — can be tested fast: one training block cut down to
+// DEMO_TRAINING_COUNT drawings with one check of each type (10 learning
+// trials), then DEMO_TEST_COUNT test trials that include at least one of
+// every test type. The questionnaires always run in full regardless.
+const DEMO_TRAINING_COUNT = 7;
+const DEMO_CHECKS = 3;
+const DEMO_TEST_COUNT = 15;
 
 let participantId;
 let demoModeActive = false;
@@ -705,12 +710,11 @@ function buildOneBackTrial(prevRow, checkType, options, trainingBlock, trialNum)
 }
 
 // Which drawings in a training block get a one-back check after them:
-// ONE_BACK_PROPORTION of them, split evenly across the three check types.
-function oneBackSchedule(nDrawings) {
-  const count = Math.round(nDrawings * ONE_BACK_PROPORTION);
-  const types = Object.keys(ONE_BACK_QUESTIONS);
+// `count` randomly chosen drawings, with check types taken in turn from
+// typeOrder (so they're split as evenly as possible) and then shuffled.
+function oneBackSchedule(nDrawings, count, typeOrder) {
   const checkTypes = jsPsych.randomization.shuffle(
-    Array.from({ length: count }, function(_, i) { return types[i % types.length]; })
+    Array.from({ length: count }, function(_, i) { return typeOrder[i % typeOrder.length]; })
   );
   const positions = jsPsych.randomization.sampleWithoutReplacement([...Array(nDrawings).keys()], count);
   const schedule = {};
@@ -839,8 +843,9 @@ function buildInstructions(kids) {
 }
 
 // trainingBlocks: one shuffled array of training rows per training block.
+// checksPerBlock: one-back checks in each training block.
 // test: the shuffled test rows.
-function buildInductionTimeline(trainingBlocks, test, columns) {
+function buildInductionTimeline(trainingBlocks, checksPerBlock, test, columns) {
   const timeline = [];
   const allTraining = trainingBlocks.flat();
   const options = designOptions(allTraining);
@@ -861,8 +866,13 @@ function buildInductionTimeline(trainingBlocks, test, columns) {
 
   // trial_num is the presentation order within each training block, or
   // within the test phase; id stays the trial list's ID for that row.
+  // Rotating the type order each block changes which type gets one fewer
+  // check when checksPerBlock isn't a multiple of 3.
+  const typeOrder = jsPsych.randomization.shuffle(Object.keys(ONE_BACK_QUESTIONS));
   trainingBlocks.forEach(function(block, b) {
-    const schedule = oneBackSchedule(block.length);
+    const shift = b % typeOrder.length;
+    const blockTypeOrder = typeOrder.slice(shift).concat(typeOrder.slice(0, shift));
+    const schedule = oneBackSchedule(block.length, checksPerBlock, blockTypeOrder);
     block.forEach(function(row, i) {
       timeline.push(buildTrainingTrial(row, b + 1, i + 1));
       if (schedule[i]) {
@@ -1012,7 +1022,7 @@ async function runExperiment() {
   if (demoMode) {
     const banner = document.createElement("div");
     banner.id = "demo-mode-banner";
-    banner.textContent = `DEMO MODE — ${DEMO_TRAINING_COUNT} training drawings, ${DEMO_TEST_COUNT} test trials`;
+    banner.textContent = `DEMO MODE — ${DEMO_TRAINING_COUNT + DEMO_CHECKS} learning trials, ${DEMO_TEST_COUNT} test trials`;
     document.body.appendChild(banner);
   }
 
@@ -1033,14 +1043,24 @@ async function runExperiment() {
   let trainingBlocks = Array.from({ length: TRAINING_BLOCKS }, function() {
     return jsPsych.randomization.shuffle(training);
   });
+  let checksPerBlock = ONE_BACK_CHECKS_PER_BLOCK;
   let test = jsPsych.randomization.shuffle(testList.filter(function(row) { return row.design === design; }));
   if (demoMode) {
     trainingBlocks = [trainingBlocks[0].slice(0, DEMO_TRAINING_COUNT)];
-    test = test.slice(0, DEMO_TEST_COUNT);
+    checksPerBlock = DEMO_CHECKS;
+    // One trial of every test type first, then fill up to DEMO_TEST_COUNT
+    // from the rest; reshuffled so the types don't come in a fixed order.
+    const firstOfEachType = [...new Set(test.map(function(row) { return row.test_type; }))].map(function(type) {
+      return test.find(function(row) { return row.test_type === type; });
+    });
+    const rest = test.filter(function(row) { return !firstOfEachType.includes(row); });
+    test = jsPsych.randomization.shuffle(
+      firstOfEachType.concat(rest.slice(0, Math.max(0, DEMO_TEST_COUNT - firstOfEachType.length)))
+    );
   }
 
   const timeline = [];
-  timeline.push(...buildInductionTimeline(trainingBlocks, test, inductionCSVColumns(trainingList, testList)));
+  timeline.push(...buildInductionTimeline(trainingBlocks, checksPerBlock, test, inductionCSVColumns(trainingList, testList)));
 
   // FIT and IRQ questionnaires: always run in full, whether or not demo mode
   // is on, each saving to its own "<subjCode>_FIT.csv" / "<subjCode>_IRQ.csv"
