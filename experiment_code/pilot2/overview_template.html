@@ -221,6 +221,10 @@ const tally = (rows, fn) => { const c = {}; rows.forEach(r => { const k = fn(r);
 const mode = c => Object.entries(c).sort((a, b) => b[1] - a[1])[0][0];
 const usual = Object.fromEntries(KIDS.map(k => [k, mode(tally(DATA.training.filter(r => r.kid === k), r => r.color))]));
 
+// Fixed tilt per drawing, same formula as experiment.js (the advisor's demo).
+const tilt = t => ((t * 37) % 17) - 8;
+const trainTilt = it => tilt(it.token + it.kid.length);
+
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 // Shapes are the traced outlines the experiment shows; thin lines get a
@@ -242,13 +246,13 @@ function pillClass(key) {
 
 // One answer option: color swatch, shape outline or kid name, with its code
 // and answer-key pill underneath when the key is on.
-function optionHTML(type, code, pressed, key, pos) {
+function optionHTML(type, code, pressed, key, pos, strategy) {
   const showKey = $("keyT").checked;
   let btn;
   if (type === "color") btn = `<button class="sw" data-code="${code}" aria-pressed="${pressed}" style="background:${hex(code)}" aria-label="Color option ${pos + 1}${showKey ? `, ${code}` : ""}"></button>`;
   else if (type === "shape") btn = `<button class="shape-opt" data-code="${code}" aria-pressed="${pressed}" aria-label="Shape option ${pos + 1}${showKey ? `, ${code}` : ""}">${fig(code, null, 64)}</button>`;
   else btn = `<button class="name-opt" data-code="${esc(code)}" aria-pressed="${pressed}">${esc(code)}</button>`;
-  const extra = showKey ? `${type !== "kid" ? `<div class="code">${code}</div>` : ""}${key ? `<div class="pill ${pillClass(key)}">${esc(key)}</div>` : ""}` : "";
+  const extra = showKey ? `${type !== "kid" ? `<div class="code">${code}</div>` : ""}${key ? `<div class="pill ${pillClass(key)}">${esc(key)}</div>` : ""}${strategy ? `<div class="code">${esc(strategy)}</div>` : ""}` : "";
   return `<div class="opt">${btn}${extra}</div>`;
 }
 
@@ -259,7 +263,7 @@ function renderIntro() {
   $("steps").innerHTML = [
     "Setup: subject code, random seed, nameability condition (between-subject), questionnaire order.",
     "Instructions (3 pages: the task is to learn which drawings belong to which kid; overview of the learning, question and questionnaire phases; one example drawing). No practice. The researcher presses Q to start.",
-    `Training: ${S.trainingBlocks} blocks of ${DATA.training.length} drawings + ${S.checksPerBlock} attention checks (drawings timed, ~${drawMin} min in total).`,
+    `Training: ${S.trainingBlocks} blocks of ${DATA.training.length} drawings + ${S.checksPerBlock} attention checks (drawings timed, ~${drawMin} min in total), with a self-paced break between blocks.`,
     `Test: ${DATA.tests.length} self-paced trials, prediction and memory shuffled together.`,
     "FIT and IRQ questionnaires, in the order chosen at setup.",
     "Redirect to the final Qualtrics survey.",
@@ -292,13 +296,13 @@ function renderLegend() {
 
 // ---- Training ----
 function newTrainOrder() {
-  trainOrder = shuffle(DATA.training.map((_, i) => ({ i, r: Math.round((Math.random() * 2 - 1) * S.maxRotation) })));
+  trainOrder = shuffle(DATA.training.map((_, i) => ({ i })));
   trainPos = 0; checkPick = null;
 }
 function renderTrain() {
-  $("trainNote").textContent = `Participants see one drawing at a time with the kid’s name (${S.drawingMs / 1000} s each, ${S.gapMs / 1000} s gap). Each training block shows all ${DATA.training.length} drawings once in a new random order, for ${S.trainingBlocks} blocks. Every drawing gets a small random tilt (up to ±${S.maxRotation}°) so repeats aren’t identical.`;
+  $("trainNote").textContent = `Participants see one drawing at a time with the kid’s name (${S.drawingMs / 1000} s each, ${S.gapMs / 1000} s gap). Each training block shows all ${DATA.training.length} drawings once in a new random order, for ${S.trainingBlocks} blocks. Each drawing has its own fixed tilt (−8° to 8°, from the advisor’s formula), the same for every participant.`;
   const cur = trainOrder[trainPos], it = DATA.training[cur.i];
-  $("trainFig").innerHTML = fig(it.shape, hex(it.color), 170, cur.r);
+  $("trainFig").innerHTML = fig(it.shape, hex(it.color), 170, trainTilt(it));
   $("trainCap").textContent = `${it.kid} drew this.`;
   $("trainCount").textContent = `Drawing ${trainPos + 1} of ${DATA.training.length}`;
   $("kids").innerHTML = KIDS.map(kid => {
@@ -321,7 +325,7 @@ function renderCheck(it) {
 
 // ---- Test ----
 function trialLabel(t) {
-  if (t.test_type === "who_drew") return `${t.shape} in ${t.figure_color}`;
+  if (t.test_type === "who_drew") return `${t.shape} in ${t.color}`;
   if (t.test_type === "most_frequent_shape") return t.kid;
   if (t.test_type === "memory_probe") return `${t.kid} + ${t.shape}`;
   // Same labels as the advisor's demo: "Lucy + S1 (...)", "Lucy only (...)", "S4 only (...)".
@@ -343,12 +347,12 @@ function renderTest() {
   $("prompt").hidden = !t.prompt;
   $("question").textContent = t.question;
   let figure = "";
-  if (t.test_type === "who_drew") figure = fig(t.shape, hex(t.figure_color), 170, 3);
-  else if (t.shape !== "none") figure = fig(t.shape, t.response_type === "color" && pick ? hex(pick) : null, 170, -4);
+  if (t.test_type === "who_drew") figure = fig(t.shape, hex(t.color), 170, tilt(S.testToken));
+  else if (t.shape !== "none") figure = fig(t.shape, t.response_type === "color" && pick ? hex(pick) : null, 170, tilt(S.testToken));
   else if (t.test_type === "category_only") figure = `<div class="hidden-shape"></div>`;
   $("testFig").innerHTML = figure;
   $("testFig").hidden = !figure;
-  $("swatches").innerHTML = order.map((i, pos) => optionHTML(t.response_type, t.options[i].code, pick === t.options[i].code, t.options[i].key, pos)).join("");
+  $("swatches").innerHTML = order.map((i, pos) => optionHTML(t.response_type, t.options[i].code, pick === t.options[i].code, t.options[i].key, pos, t.options[i].strategy)).join("");
   $("swatches").querySelectorAll("button").forEach(b => b.onclick = () => { pick = b.dataset.code; renderTest(); });
 
   const parts = [`${t.id}, ${TYPE_LABEL[t.test_type]}: ${t.diagnostic_for}.`];

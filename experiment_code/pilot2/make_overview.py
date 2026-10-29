@@ -33,7 +33,7 @@ SETTINGS = {
     "drawingMs": "TRAINING_DRAWING_MS",
     "gapMs": "TRAINING_GAP_MS",
     "checksPerBlock": "ONE_BACK_CHECKS_PER_BLOCK",
-    "maxRotation": "JITTER_MAX_ROTATION_DEG",
+    "testToken": "TEST_FIGURE_TOKEN",
     "demoDrawings": "DEMO_TRAINING_COUNT",
     "demoChecks": "DEMO_CHECKS",
     "demoTests": "DEMO_TEST_COUNT",
@@ -78,7 +78,7 @@ def main():
     first = training[0]["design"]
     data = {
         "settings": read_settings(),
-        "training": [dict(kid=r["kid"], shape=r["shape"], color=r["color"]) for r in training if r["design"] == first],
+        "training": [dict(kid=r["kid"], shape=r["shape"], color=r["color"], token=int(r["token"][1:])) for r in training if r["design"] == first],
         "tests": [],
         "conditions": {},
     }
@@ -86,11 +86,11 @@ def main():
     for r in (t for t in tests if t["design"] == first):
         options, i = [], 1
         while r.get(f"opt{i}"):
-            options.append({"code": r[f"opt{i}"], "key": r[f"key_opt{i}"]})
+            options.append({"code": r[f"opt{i}"], "key": r[f"key_opt{i}"], "strategy": r[f"strategy_opt{i}"]})
             i += 1
         data["tests"].append({k: r[k] for k in (
             "id", "test_type", "kid", "shape", "prompt", "question", "response_type",
-            "figure_color", "correct_answer", "ans_category", "ans_within_conjunction",
+            "color", "correct_answer", "ans_category", "ans_within_conjunction",
             "ans_shape_based", "ans_as_if_other_kid", "diagnostic_for")} | {"options": options})
 
     for r in roles:

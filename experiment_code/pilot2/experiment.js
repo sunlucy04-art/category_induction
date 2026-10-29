@@ -10,9 +10,10 @@
   2. Reads training_trials.csv and test_trials.csv (made by
      generate_design.py) and keeps this participant's condition. All
      randomization (training and test order, one-back check placement,
-     answer option order, drawing jitter, questionnaire item order) is
-     driven by the seed entered at setup, so the same seed reproduces the
-     same session.
+     answer option order, questionnaire item order) is driven by the seed
+     entered at setup, so the same seed reproduces the same session. Each
+     drawing's tilt is NOT random: it is fixed per drawing, as in the
+     advisor's demo, so every participant sees identical drawings.
   3. Runs the induction task: training shows the 24 drawings one at a time
      with the kid's name, cycled TRAINING_BLOCKS times, with one-back
      attention checks after some drawings. Then the test phase mixes
@@ -54,12 +55,8 @@ const TRAINING_GAP_MS = 500;
 // rotating which type gets fewer from block to block.
 const ONE_BACK_CHECKS_PER_BLOCK = 8;
 
-// Range of the random rotation/scale applied to every drawing shown. Scale
-// is fixed at 1 (no size change): size variation made drawings of the same
-// shape look like different sizes.
-const JITTER_MAX_ROTATION_DEG = 8;
-const JITTER_MIN_SCALE = 1;
-const JITTER_MAX_SCALE = 1;
+// Token number the advisor's demo gives every test-phase figure.
+const TEST_FIGURE_TOKEN = 20;
 
 // Kid name used only in the instructions' example drawing, so the example
 // never uses a real kid (or, via each condition's instruction_examples
@@ -584,6 +581,7 @@ function testOptions(row) {
       id: row[`opt${i}_id`],
       image: row[`opt${i}_image`],
       key: row[`key_opt${i}`],
+      strategy: row[`strategy_opt${i}`],
     };
   });
 }
@@ -604,15 +602,18 @@ function designOptions(training) {
   };
 }
 
-// Small random rotation/scale for every drawing shown, so repeated drawings
-// of a shape aren't pixel-identical (same ranges as the advisor's demo).
-// Math.random is seeded by jsPsych.randomization.setSeed, so the same seed
-// reproduces the same jitter.
-function randomJitter() {
-  return {
-    rotation: Math.round((Math.random() * 2 - 1) * JITTER_MAX_ROTATION_DEG),
-    scale: Number((JITTER_MIN_SCALE + Math.random() * (JITTER_MAX_SCALE - JITTER_MIN_SCALE)).toFixed(3)),
-  };
+// Fixed tilt for a drawing, using the advisor's demo formula: t is the
+// drawing's token number plus the length of the kid's name for training
+// drawings, and TEST_FIGURE_TOKEN for test figures, giving a rotation from
+// -8 to 8 degrees. Every participant sees the same tilt on the same drawing.
+// The demo's size change (scale 0.88-1.09) is left out: it made drawings of
+// the same shape look like different sizes.
+function drawingTilt(t) {
+  return { rotation: ((t * 37) % 17) - 8, scale: 1 };
+}
+
+function trainingTilt(row) {
+  return drawingTilt(Number(row.token.slice(1)) + row.kid.length);
 }
 
 function drawingHTML(src, jitter) {
@@ -655,13 +656,14 @@ function buildChoiceTrial(stimulus, responseType, options, correctCode, data) {
       d.response_code = selected.code;
       d.response_id = selected.id;
       d.response_key = selected.key || "";
+      d.strategy = selected.strategy || "";
       d.is_correct = correctCode ? selected.code === correctCode : "";
     },
   };
 }
 
 function buildTrainingTrial(row, trainingBlock, trialNum) {
-  const jitter = randomJitter();
+  const jitter = trainingTilt(row);
   return {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
@@ -705,8 +707,8 @@ function buildOneBackTrial(prevRow, checkType, options, trainingBlock, trialNum)
     Object.assign({}, prevRow, {
       inductionsave: true,
       subjCode: participantId,
-      phase: "one_back",
-      one_back_type: checkType,
+      phase: "training",
+      attention_check_type: checkType,
       training_block: trainingBlock,
       trial_num: trialNum,
     })
@@ -727,7 +729,7 @@ function oneBackSchedule(nDrawings, count, typeOrder) {
 }
 
 function buildTestTrial(row, trialNum) {
-  const jitter = randomJitter();
+  const jitter = drawingTilt(TEST_FIGURE_TOKEN);
   // category_only trials name the kid but show only a blank space where
   // the drawing would be; most_frequent_shape trials show no drawing at all.
   let figure = "";
@@ -759,27 +761,39 @@ function buildTestTrial(row, trialNum) {
   );
 }
 
+// Columns left out of the saved data: design always equals condition (one
+// design per condition); image paths (shape_id/color_id/opt*_id name the
+// stimuli); response_type (follows from test_type/attention_check_type);
+// response_position (response holds the chosen option itself).
+function isDroppedInductionColumn(c) {
+  return ["design", "image", "response_type", "response_position"].includes(c) || c.endsWith("_image");
+}
+
+// Saved-data names for internal data fields.
+const INDUCTION_RENAMED_COLUMNS = { id: "stimulus", response_code: "response" };
+
 // Fixed column order for the tidy induction CSV: one row per training
 // drawing, one-back check and test trial, with every column from both trial
 // lists plus what happened on the trial. Columns that don't apply to a
 // row's phase are left blank.
 function inductionCSVColumns(trainingRows, testRows) {
   return [...new Set([
-    "subjCode", "random_seed", "trial_type", "phase", "training_block", "trial_num", "one_back_type",
+    "subjCode", "random_seed", "trial_type", "phase", "training_block", "trial_num", "attention_check_type",
     ...Object.keys(trainingRows[0] || {}),
     ...Object.keys(testRows[0] || {}),
     "rotation", "scale", "response_type", "option_order",
-    "response_position", "response_code", "response_id", "response_key",
+    "response_position", "response_code", "response_id", "response_key", "strategy",
     "correct_answer", "is_correct", "rt",
-  ])];
+  ])].filter(function(c) { return !isDroppedInductionColumn(c); });
 }
 
 function buildInductionCleanCSV(columns) {
   const rows = jsPsych.data.get().filter({ inductionsave: true }).trials.map(function(t) {
     const row = {};
-    columns.forEach(function(c) { row[c] = t[c] !== undefined ? t[c] : ""; });
-    // trial_type is required for OSF to accept the data (same fix as FIT/IRQ).
-    row.trial_type = "induction";
+    columns.forEach(function(c) { row[INDUCTION_RENAMED_COLUMNS[c] || c] = t[c] !== undefined ? t[c] : ""; });
+    // trial_type is required for OSF to accept the data (same fix as FIT/IRQ):
+    // training drawings, attention checks (also phase "training") or test.
+    row.trial_type = t.attention_check_type ? "attention_check" : t.phase;
     return row;
   });
   return Papa.unparse(rows);
@@ -804,7 +818,7 @@ function buildInstructions(kids, exampleDrawing) {
       `
         <div class="instructions-block">
           <p>The study has three parts:</p>
-          <p><b>1. Learning phase.</b> You will see the kids' drawings one at a time, each with the name of the kid who drew it. Just watch and learn which drawings each kid made. Every so often, you will be asked a quick question about the drawing you just saw, to check that you are paying attention.</p>
+          <p><b>1. Learning phase.</b> You will see the kids' drawings one at a time, each with the name of the kid who drew it. Just watch and learn which drawings each kid made. Every so often, you will be asked a quick question about the drawing you just saw, to check that you are paying attention. There will be a few short breaks along the way to rest your eyes.</p>
           <p><b>2. Question phase.</b> You will answer questions about the drawings.</p>
           <p><b>3. Questionnaire phase.</b> You will fill out a few short questionnaires. When you finish the last questionnaire, the study is complete.</p>
           <p>Click "Next" to continue.</p>
@@ -815,7 +829,7 @@ function buildInstructions(kids, exampleDrawing) {
           <p>In the learning phase, each drawing will look something like this (this kid and drawing are just an example and are not part of the study):</p>
           ${drawingHTML(exampleDrawing, { rotation: 0, scale: 1 })}
           <p class="drawing-caption"><b>${INSTRUCTION_KID}</b> drew this.</p>
-          <p>Each drawing is only on the screen for a few seconds, so pay close attention.</p>
+          <p>Each drawing is only on the screen for a few seconds, so <b>pay close attention</b>.</p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
@@ -893,15 +907,30 @@ function buildInductionTimeline(trainingBlocks, checksPerBlock, test, columns, e
         timeline.push(buildOneBackTrial(row, schedule[i], options, b + 1, i + 1));
       }
     });
+    if (b < trainingBlocks.length - 1) {
+      timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+          <div class="instructions-block">
+            <h2>Take a break!</h2>
+            <p>Rest your eyes and stretch if needed.</p>
+            <p>Press any key when you're ready to keep going.</p>
+          </div>
+        `,
+        data: { screen: "training_break", training_block: b + 1 },
+      });
+    }
   });
 
   timeline.push({
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
       <div class="instructions-block">
-        <p>That's the end of the learning phase.</p>
-        <p>Now you will answer some questions about the drawings by ${listNames(kids)}.</p>
-        <p>Press any key to start.</p>
+        <h2>Great job!</h2>
+        <p>You are done with the learning phase.</p>
+        <p>Next is the <b>question phase</b>. You will answer various questions about the drawings by ${listNames(kids)}.</p>
+        <p>Take as much time as you need to answer each question.</p>
+        <p>Press any key to start the question phase.</p>
       </div>
     `,
     data: { screen: "test_intro" },
@@ -1078,9 +1107,10 @@ async function runExperiment() {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
       <div class="instructions-block">
-        <p>That's the end of the question phase.</p>
-        <p>Now you will fill out a few short questionnaires. When you finish the last one, the study is complete.</p>
-        <p>Press any key to start.</p>
+        <h2>Great job!</h2>
+        <p>You are done with the question phase.</p>
+        <p>Next is the <b>questionnaire phase</b>. You will fill out a few short questionnaires. When you finish the last one, the study is complete.</p>
+        <p>Press any key to start the questionnaire phase.</p>
       </div>
     `,
     data: { screen: "questionnaire_intro" },
