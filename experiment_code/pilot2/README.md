@@ -37,7 +37,7 @@ Every participant learns exactly the demo's three categories (Lucy, Sam, Ana) wi
 | C4 every S4 (Ana's shape) | orange (`high_color2`) | olive (`low_color3`) |
 | C5 2 of 3 of Lucy's S1s and Sam's S2s | purple (`high_color5`) | pale lime (`low_color6`) |
 
-**Instructions** build up one piece at a time with pictured examples, as in pilot 1: a training drawing, an attention check, a new-drawing color question, the no-shape / no-name variants, and a memory question. Then a short clickable practice (2 drawings, 1 check, 1 color question; not saved). The examples use kids (Max, Zoe, Ben), shapes (4 and 9) and colors that never appear in the real trials; `prepare_nameability_stimuli.py` makes them in `images/<condition>/instruction_examples/`, matched to the participant's condition. The real kids' names first appear on the start screen.
+**Instructions** tell participants their job is to learn which drawings belong to which kid, and outline the three parts: a learning phase (watch the drawings, with occasional quick checks on the last drawing), a question phase, and a questionnaire phase, after which the study is complete. One page shows an example learning-phase drawing, using a kid (Max), shape (4) and color that never appear in the real trials; `prepare_nameability_stimuli.py` makes it in `images/<condition>/instruction_examples/`, matched to the participant's condition. There is no practice and no example of the test questions. The real kids' names first appear on the start screen. Short transition pages mark the start of the question phase and the questionnaire phase.
 
 **Demo mode** (`?demo=true` or the setup checkbox): 10 learning trials (7 drawings + one check of each type), the pre-test instructions, then 15 test trials that always include at least one of every test type. The questionnaires still run in full.
 
@@ -71,5 +71,5 @@ The FIT and IRQ questionnaires, per-section DataPipe saving, and the Qualtrics r
 
 ## Before running
 
-- Set `DATA_PIPE_EXPERIMENT_ID` in `experiment.js` to a **new** pilot 2 pipe. Until then, data is saved as local downloads.
+- `DATA_PIPE_EXPERIMENT_ID` is set to pilot 2's own pipe (`JRZFIrsm3u4n`). Make sure data collection is switched on for it in DataPipe.
 - Check `QUALTRICS_URL`; it still points at the pilot 1 survey.

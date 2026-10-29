@@ -258,7 +258,7 @@ function renderIntro() {
   const drawMin = Math.round(S.trainingBlocks * DATA.training.length * (S.drawingMs + S.gapMs) / 6000) / 10;
   $("steps").innerHTML = [
     "Setup: subject code, random seed, nameability condition (between-subject), questionnaire order.",
-    "Instructions (3 pages); the researcher presses Q to start.",
+    "Instructions (3 pages: the task is to learn which drawings belong to which kid; overview of the learning, question and questionnaire phases; one example drawing). No practice. The researcher presses Q to start.",
     `Training: ${S.trainingBlocks} blocks of ${DATA.training.length} drawings + ${S.checksPerBlock} attention checks (drawings timed, ~${drawMin} min in total).`,
     `Test: ${DATA.tests.length} self-paced trials, prediction and memory shuffled together.`,
     "FIT and IRQ questionnaires, in the order chosen at setup.",
