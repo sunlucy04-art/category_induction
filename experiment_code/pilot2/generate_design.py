@@ -16,8 +16,9 @@ memory_trials).
 Outputs (read by experiment.js):
   training_trials.csv  the 24 training drawings, per condition
   test_trials.csv      the test trials, per condition
-  design_roles.csv  which shape/color fills each S/C role per condition
-                       (for analysis; not read by the experiment)
+  shape_color_roles.csv  which shape/color file fills each S/C role per
+                         condition, and the role's job in the design
+                         (for analysis; not read by the experiment)
 
 Every test option also gets a strategy code (strategy_opt1..N, see
 option_strategy) naming what choosing it reflects, in terms of the trial's
@@ -30,6 +31,7 @@ Re-run whenever the template, the stimuli, or the settings below change.
 from collections import Counter
 from pathlib import Path
 import csv
+import re
 import subprocess
 import sys
 import tempfile
@@ -58,6 +60,23 @@ COLOR_ROLES = {
     # (demo: mauve, teal, tan, olive, lavender)
     "low_nameability": {"C1": "low_color1", "C2": "low_color10", "C3": "low_color2",
                         "C4": "low_color3", "C5": "low_color6"},
+}
+
+# What each role does in the design, for shape_color_roles.csv.
+ROLE_JOBS = {
+    "S1": "Lucy's own shape (only Lucy draws it, mostly in C5)",
+    "S2": "Sam's own shape (only Sam draws it, mostly in C5)",
+    "S3": "drawn by every kid, each in their own most frequent color",
+    "S4": "Ana's own shape (only Ana draws it, always in C4)",
+    "C1": "Lucy's most frequent color",
+    "C2": "Sam's most frequent color",
+    "C3": "Ana's most frequent color",
+    "C4": "the color of every S4",
+    "C5": "the less frequent color on Lucy's S1s and Sam's S2s",
+}
+COLOR_NAMES = {
+    "high_nameability": {"C1": "red", "C2": "blue", "C3": "yellow", "C4": "orange", "C5": "purple"},
+    "low_nameability": {"C1": "dusty pink", "C2": "slate", "C3": "terracotta", "C4": "olive", "C5": "pale lime"},
 }
 
 CONDITIONS = {
@@ -142,38 +161,34 @@ def extra_prediction_trials(rows, first_id):
     for kid, shape in [(lucy, "S2"), (sam, "S1")]:
         sc, other = cnt(shape=shape), drawers[shape][0]
         key = base_key(kid)
-        key[usual[kid]] = f"{kid}'s usual (category answer)"
-        key[mode(sc)] = f"{sc[mode(sc)]} of the {sum(sc.values())} {shape}s were {mode(sc)} (shape-based answer)"
-        key[usual[other]] = f"{other}'s usual (as if {other} drew it)"
-        add("cross_category_conflict", kid, shape, usual[kid], "NA", mode(sc), usual[other],
-            "category membership vs shape", key)
+        key[usual[kid]] = f"{kid}'s usual"
+        key[mode(sc)] = f"{sc[mode(sc)]} of the {sum(sc.values())} {shape}s were {mode(sc)}"
+        key[usual[other]] = f"{other}'s usual"
+        add("cross_category_conflict", kid, shape, usual[kid], "NA", mode(sc), usual[other], "", key)
 
     dc = cnt(ana, "S4")
     key = base_key(ana)
-    key[usual[ana]] = f"{ana}'s usual (category answer)"
-    key[mode(dc)] = f"{dc[mode(dc)]} of {ana}'s {sum(dc.values())} S4s (conjunction answer)"
-    add("classic_disagree", ana, "S4", usual[ana], mode(dc), mode(cnt(shape="S4")), "NA",
-        "category summary vs within-category conditioning", key)
+    key[usual[ana]] = f"{ana}'s usual"
+    key[mode(dc)] = f"{dc[mode(dc)]} of {ana}'s {sum(dc.values())} S4s"
+    add("classic_disagree", ana, "S4", usual[ana], mode(dc), mode(cnt(shape="S4")), "NA", "", key)
 
     key = base_key(ana)
     key[usual[ana]] = f"{ana}'s usual, and all of {ana}'s S3s"
-    add("agree", ana, "S3", usual[ana], mode(cnt(ana, "S3")), "mixed", "NA", "learning/attention check", key)
+    add("agree", ana, "S3", usual[ana], mode(cnt(ana, "S3")), "mixed", "NA", "", key)
 
     for shape in ["S1", "S2"]:
         owner, sc = drawers[shape][0], cnt(shape=shape)
         key = {c: f"{k}'s usual color" for k, c in usual.items()}
         key.update({c: f"never on an {shape}" for c in colors if c not in key})
-        key[usual[owner]] = f"{owner}'s usual (guess {owner}, use {owner}'s usual color)"
-        key[mode(sc)] = f"{sc[mode(sc)]} of the {sum(sc.values())} {shape}s were {mode(sc)} (shape-based answer)"
-        add("kid_not_named", "none", shape, f"{usual[owner]} (if {owner} is guessed)", "NA", mode(sc), "NA",
-            f"uncertain kid: guess {owner} and use the usual color vs shape-based", key)
+        key[usual[owner]] = f"{owner}'s usual"
+        key[mode(sc)] = f"{sc[mode(sc)]} of the {sum(sc.values())} {shape}s were {mode(sc)}"
+        add("kid_not_named", "none", shape, f"{usual[owner]} (if {owner} is guessed)", "NA", mode(sc), "NA", "", key)
 
     # S3 is drawn by every kid in their own usual color, so there is no
-    # single kid to guess and no shape-based answer: a control.
+    # single kid to guess and no single shape color: a control.
     key = {c: f"{k}'s usual color (all of {k}'s S3s)" for k, c in usual.items()}
     key.update({c: "never on an S3" for c in colors if c not in key})
-    add("kid_not_named", "none", "S3", "NA", "NA", "mixed", "NA",
-        "control: shape drawn by every kid, each in their usual color", key)
+    add("kid_not_named", "none", "S3", "NA", "NA", "mixed", "NA", "", key)
 
     return out
 
@@ -244,25 +259,34 @@ def option_strategy(t, option, rows):
     (the named kid, the kid who draws the shape, any other kid), not by
     which kid or color it is, so functionally equivalent trials share codes.
     When an option fits more than one strategy, every one is listed, joined
-    with "-" in the order below (e.g. "conjunction-shape_based").
+    with "-" in the order below.
 
     Prediction trials (agree, classic_disagree, cross_category_conflict,
     category_only, kid_not_named):
-      category               the named kid's most frequent color
-      conjunction            the color the named kid mostly used on this shape
-      shape_based            the color this shape mostly had (none for a
-                             shape with no single most common color, i.e. S3)
-      shape_drawer_category  the most frequent color of a kid who draws this
-                             shape, when the named kid doesn't ("as if that
-                             kid drew it"; no kid named: any kid who drew it)
-      named_kid_other_color  a less frequent color of the named kid's, never
-                             used by them on this shape
+      most_frequent_color_kid_match   the named kid's most frequent color
+      conjunction_kid_match           the color the named kid mostly used on
+                                      this shape (only for the named kid's
+                                      own shapes)
+      conjunction_other_kid           the color this shape mostly had, when it
+                                      was drawn by a different kid than the
+                                      one named (no kid named: whoever drew
+                                      it; none for S3, which has no single
+                                      most common color)
+      most_frequent_color_other_kid   the most frequent color of a kid who
+                                      draws this shape, when the named kid
+                                      doesn't ("as if that kid drew it"; no
+                                      kid named: any kid who drew it)
+      named_kid_other_color           a less frequent color of the named
+                                      kid's, never used by them on this shape
     and, only when none of those fit:
-      other_kid_category     another kid's most frequent color
-      never_used             never used by the named kid (no kid named:
-                             never used on this shape)
-    memory_probe: correct (the named kid's color on this shape), category,
-      named_kid_other_color, then other_kid_category / never_used.
+      most_frequent_unrelated_kid     the most frequent color of a kid unrelated
+                                      to this trial (not named, and never drew
+                                      this shape)
+      never_used                      never used by the named kid (no kid
+                                      named: never used on this shape)
+    memory_probe: correct (the named kid's color on this shape),
+      most_frequent_color_kid_match, named_kid_other_color, then
+      most_frequent_unrelated_kid / never_used.
     who_drew: correct, other_drawer_of_shape, never_drew_shape.
     most_frequent_shape: correct, named_kid_other_shape, never_drawn.
     """
@@ -288,17 +312,65 @@ def option_strategy(t, option, rows):
     codes = []
     if test_type == "memory_probe":
         if option == t["correct_answer"]: codes.append("correct")
-        if option == usual[kid]: codes.append("category")
+        if option == usual[kid]: codes.append("most_frequent_color_kid_match")
     else:
-        if named and option == usual[kid]: codes.append("category")
-        if kid_shape_colors and option == mode(kid_shape_colors): codes.append("conjunction")
-        if option == shape_mode: codes.append("shape_based")
-        if kid not in drawers and option in {usual[d] for d in drawers}: codes.append("shape_drawer_category")
+        if named and option == usual[kid]: codes.append("most_frequent_color_kid_match")
+        if kid_shape_colors and option == mode(kid_shape_colors): codes.append("conjunction_kid_match")
+        if kid not in drawers:
+            if option == shape_mode: codes.append("conjunction_other_kid")
+            if option in {usual[d] for d in drawers}: codes.append("most_frequent_color_other_kid")
     if named and option in kid_colors and option != usual[kid] and option not in kid_shape_colors:
         codes.append("named_kid_other_color")
     if not codes:
-        codes.append("other_kid_category" if option in usual.values() else "never_used")
+        codes.append("most_frequent_unrelated_kid" if option in usual.values() else "never_used")
     return "-".join(codes)
+
+
+# The advisor's script tags its answer keys with strategy names, e.g.
+# "Lucy's usual (category answer)": the strategy_opt codes name the strategy
+# now, so the keys keep only the factual reason ("Lucy's usual").
+STRATEGY_TAG = re.compile(r" \((category answer|conjunction answer|shape-based answer|as if \w+ drew it|guess \w+, use \w+'s usual color)\)$")
+
+
+# What each prediction trial group pits against what, in strategy codes
+# (replaces the advisor's diagnostic_for wording for these trials).
+DIAGNOSTIC_FOR = {
+    "agree": "baseline: most_frequent_color_kid_match and conjunction_kid_match are the same option",
+    "classic_disagree": "most_frequent_color_kid_match vs conjunction_kid_match",
+    "cross_category_unique_color": "most_frequent_color_kid_match vs conjunction_other_kid vs most_frequent_color_other_kid",
+    "cross_category_shared_color": "most_frequent_color_kid_match vs conjunction_other_kid vs most_frequent_color_other_kid "
+                                   "(conjunction_other_kid is also named_kid_other_color)",
+    "category_only": "most_frequent_color_kid_match, with no shape shown",
+    "kid_not_named": "most_frequent_color_other_kid vs conjunction_other_kid",
+    "kid_not_named_control": "control: every kid draws this shape, each in their own most frequent color",
+}
+
+
+def trial_group(row):
+    """Functionally equivalent test trials. test_type alone mixes a few that
+    aren't, so those are split using the options' strategy codes:
+      cross_category_unique_color  the shape's color is one the named kid
+                                   never used (S4)
+      cross_category_shared_color  it is also the named kid's own less
+                                   frequent color, so choosing it is
+                                   ambiguous (S1/S2)
+      kid_not_named_control        no single kid draws the shape (S3)
+      who_drew_shared_shape        other kids also drew this shape (S3)
+      memory_probe_no_conflict     the correct color is also the kid's most
+                                   frequent color (S3)
+    Every other trial's group is its test_type.
+    """
+    strategies = [v for k, v in row.items() if k.startswith("strategy_opt")]
+    test_type = row["test_type"]
+    if test_type == "cross_category_conflict":
+        return "cross_category_unique_color" if "conjunction_other_kid" in strategies else "cross_category_shared_color"
+    if test_type == "kid_not_named" and "conjunction_other_kid" not in strategies:
+        return "kid_not_named_control"
+    if test_type == "who_drew":
+        return "who_drew_shared_shape" if "other_drawer_of_shape" in strategies else "who_drew_unique_shape"
+    if test_type == "memory_probe":
+        return "memory_probe_no_conflict" if "correct-most_frequent_color_kid_match" in strategies else "memory_probe_conflict"
+    return test_type
 
 
 def main():
@@ -306,7 +378,7 @@ def main():
     assert set(SHAPE_ROLES) == {r["shape"] for r in template}, "SHAPE_ROLES must cover the template's shapes"
     color_codes = sorted({r["color"] for r in template})
 
-    training_out, test_out, design_out = [], [], []
+    training_out, test_out, roles_out = [], [], []
 
     for condition, image_dir in CONDITIONS.items():
         prefix = condition.split("_")[0]
@@ -319,21 +391,37 @@ def main():
             assert (ROOT / image_dir / "colors" / f"{color_id}.png").exists(), f"missing {color_id}"
 
         design = condition
-        # Drawings use the traced vector (SVG) versions made by
-        # prepare_nameability_stimuli.py, which stay crisp when scaled/rotated.
-        outline = lambda code: f"{image_dir}/shape_outlines/{shape_of[code]}.svg"
-        swatch = lambda code: f"{image_dir}/colors/{color_of[code]}.png"
-        composite = lambda s, c: f"{image_dir}/all_shapes/{shape_of[s]}_{color_of[c]}.svg"
+        # Stimuli are identified by their file numbers (shape 13, color 5);
+        # shape_name is the file name the experiment shows (the traced SVGs
+        # made by prepare_nameability_stimuli.py): the filled drawing
+        # (high_shape13_high_color5) or the outline alone (high_shape13).
+        number = lambda file_id: int(re.search(r"(\d+)$", file_id).group(1))
+        shape_num = lambda code: number(shape_of[code]) if code in shape_of else ""
+        color_num = lambda code: number(color_of[code]) if code in color_of else ""
 
-        for role, stimulus_id in {**shape_of, **color_of}.items():
-            design_out.append(dict(condition=condition, design=design, role=role, stimulus_id=stimulus_id))
+        for role, file_id in {**shape_of, **color_of}.items():
+            roles_out.append(dict(
+                condition=condition, role=role, kind="shape" if role.startswith("S") else "color",
+                number=number(file_id), file_name=file_id,
+                color_name=COLOR_NAMES[condition].get(role, ""), job=ROLE_JOBS[role]))
+
+        # stimulus: one ID per kid's shape-color combination (Lucy01, Lucy02...),
+        # numbered in order of first appearance in the template.
+        combo_id = {}
+        for r in template:
+            key = (r["kid"], r["shape"], r["color"])
+            if key not in combo_id:
+                combo_id[key] = f"{r['kid']}{sum(k[0] == r['kid'] for k in combo_id) + 1:02d}"
 
         for r in template:
             training_out.append(dict(
-                condition=condition, design=design, **r,
-                shape_id=shape_of[r["shape"]], color_id=color_of[r["color"]],
-                image=composite(r["shape"], r["color"]),
-                color_image=swatch(r["color"]), shape_image=outline(r["shape"]),
+                condition=condition, design=design, id=r["id"],
+                stimulus=combo_id[(r["kid"], r["shape"], r["color"])],
+                kid=r["kid"], kid_usual_color=r["kid_usual_color"],
+                shape_role=r["shape"], shape=shape_num(r["shape"]),
+                color_role=r["color"], color=color_num(r["color"]),
+                shape_name=f"{shape_of[r['shape']]}_{color_of[r['color']]}",
+                token=r["token"], shape_description=r["shape_role"],
             ))
 
         tests = make_test_trials(template)
@@ -353,35 +441,34 @@ def main():
         tests += extra + memory_trials(template, next_id + len(extra))
 
         for t in tests:
-            if t["test_type"] == "who_drew":
-                figure = composite(t["shape"], t["figure_color"])
-            elif t["shape"] in shape_of:
-                figure = outline(t["shape"])
+            # What's on screen: a training drawing (who_drew, so it has a
+            # color and its combo ID), an uncolored outline (O13), or no
+            # shape at all (prompt_only).
+            shape, color = t["shape"], t["figure_color"]
+            if color:
+                stimulus = combo_id[(t["correct_answer"], shape, color)]
+                shape_name = f"{shape_of[shape]}_{color_of[color]}"
+            elif shape in shape_of:
+                stimulus, shape_name = f"O{shape_num(shape)}", shape_of[shape]
             else:
-                figure = ""
-            # color/color_id: the color of the drawing shown (who_drew only;
-            # the other test figures are uncolored outlines or not shown).
-            row = dict(condition=condition, design=design,
-                       **{k: v for k, v in t.items() if k != "figure_color"},
-                       shape_id=shape_of.get(t["shape"], ""),
-                       color=t["figure_color"], color_id=color_of.get(t["figure_color"], ""),
-                       figure_image=figure)
+                stimulus, shape_name = "prompt_only", ""
+            row = dict(condition=condition, design=design, id=t["id"], stimulus=stimulus,
+                       **{k: v for k, v in t.items() if k not in ("id", "shape", "figure_color")},
+                       shape_role=shape, shape=shape_num(shape),
+                       color_role=color, color=color_num(color), shape_name=shape_name)
             i = 1
             while f"opt{i}" in t:
                 code = t[f"opt{i}"]
-                if t["response_type"] == "color":
-                    row[f"opt{i}_id"], row[f"opt{i}_image"] = color_of[code], swatch(code)
-                elif t["response_type"] == "shape":
-                    row[f"opt{i}_id"], row[f"opt{i}_image"] = shape_of[code], outline(code)
-                else:
-                    row[f"opt{i}_id"], row[f"opt{i}_image"] = code, ""
                 row[f"strategy_opt{i}"] = option_strategy(t, code, template)
+                row[f"key_opt{i}"] = STRATEGY_TAG.sub("", row[f"key_opt{i}"])
                 i += 1
+            row["trial_group"] = trial_group(row)
+            row["diagnostic_for"] = DIAGNOSTIC_FOR.get(row["trial_group"], row["diagnostic_for"])
             test_out.append(row)
 
     write_csv(ROOT / "training_trials.csv", training_out)
     write_csv(ROOT / "test_trials.csv", test_out)
-    write_csv(ROOT / "design_roles.csv", design_out)
+    write_csv(ROOT / "shape_color_roles.csv", roles_out)
     print(f"wrote {len(training_out)} training rows and {len(test_out)} test rows "
           f"for {len({r['design'] for r in training_out})} conditions")
 

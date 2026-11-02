@@ -3,12 +3,11 @@
 
   What this file does:
   1. Shows a setup screen asking for the subject code, the random seed,
-     the nameability condition (high or low; between-subject), whether to
-     run in demo mode (a short single-block run), and the order of the two
+     whether to run in demo mode (a short single-block run), and the order of the two
      questionnaires at the end (0: IRQ then FIT, or 1: FIT then IRQ) — any
      of these can also be pre-filled via URL params.
   2. Reads training_trials.csv and test_trials.csv (made by
-     generate_design.py) and keeps this participant's condition. All
+     generate_design.py) and keeps the high nameability rows. All
      randomization (training and test order, one-back check placement,
      answer option order, questionnaire item order) is driven by the seed
      entered at setup, so the same seed reproduces the same session. Each
@@ -35,10 +34,9 @@
 const TRAINING_CSV = "training_trials.csv";
 const TEST_CSV = "test_trials.csv";
 
-const CONDITIONS = {
-  high_nameability: "High nameability",
-  low_nameability: "Low nameability",
-};
+// Pilot 2 only runs the high nameability stimuli. Nameability isn't being
+// manipulated: the manipulation is the category design and the trial types.
+const CONDITION = "high_nameability";
 
 // Training cycles through all 24 drawings this many times, in a fresh
 // random order each time.
@@ -50,10 +48,9 @@ const TRAINING_GAP_MS = 500;
 
 // One-back attention checks (who drew / what color / what shape was the
 // last drawing) per training block, each placed after a randomly chosen
-// drawing. 8 checks + 24 drawings = 32 trials, so a quarter are checks.
-// The three types are split as evenly as possible within a block (3/3/2),
-// rotating which type gets fewer from block to block.
-const ONE_BACK_CHECKS_PER_BLOCK = 8;
+// drawing. 6 checks per 24 drawings: one check for every 4 drawings. The
+// three types are split as evenly as possible within a block (2/2/2).
+const ONE_BACK_CHECKS_PER_BLOCK = 6;
 
 // Token number the advisor's demo gives every test-phase figure.
 const TEST_FIGURE_TOKEN = 20;
@@ -70,10 +67,10 @@ const INSTRUCTION_KID = "Max";
 // own pipe (pilot 1 used "xvMyuhu7p8BK").
 const DATA_PIPE_EXPERIMENT_ID = "JRZFIrsm3u4n";
 
-// Fill this in once you have the Qualtrics link for the final survey. Until
-// then, the experiment just ends with a thank-you message instead of
-// redirecting.
-const QUALTRICS_URL = "https://uwmadison.co1.qualtrics.com/jfe/form/SV_24r43gqIML2igfk";
+// Pilot 2's final Qualtrics survey: participants are redirected here at the
+// end, with their subject code as ?subjCode=. Set it to
+// "REPLACE_WITH_YOUR_QUALTRICS_LINK" to end with a thank-you message instead.
+const QUALTRICS_URL = "https://uwmadison.co1.qualtrics.com/jfe/form/SV_cXTGxiv3CuC7KDk";
 
 // ?demo=true (or the setup screen's "Demo mode" checkbox) runs a short
 // version so the full pipeline — including every DataPipe upload and both
@@ -574,31 +571,57 @@ function getOptionNumbers(row) {
     .sort(function(a, b) { return a - b; });
 }
 
-function testOptions(row) {
+// Image files, from the stimulus file numbers (shape 13, color 5) and
+// shape_name in the trial lists. Drawings are the traced SVGs: filled
+// (all_shapes/high_shape13_high_color5) or the outline alone
+// (shape_outlines/high_shape13).
+const IMAGE_DIR = `images/${CONDITION}`;
+const FILE_PREFIX = CONDITION.split("_")[0];
+function swatchImage(color) { return `${IMAGE_DIR}/colors/${FILE_PREFIX}_color${color}.png`; }
+function outlineImage(shape) { return `${IMAGE_DIR}/shape_outlines/${FILE_PREFIX}_shape${shape}.svg`; }
+function drawingImage(row) {
+  return `${IMAGE_DIR}/${row.color ? "all_shapes" : "shape_outlines"}/${row.shape_name}.svg`;
+}
+
+// Role code (S1-S4, C1-C5) -> file number, from the training drawings,
+// which use every role.
+function roleNumbers(training) {
+  const numbers = {};
+  training.forEach(function(row) {
+    numbers[row.shape_role] = row.shape;
+    numbers[row.color_role] = row.color;
+  });
+  return numbers;
+}
+
+// A choice option: its role code, the stimulus it stands for (file number,
+// or the kid's name), and the image on its button.
+function makeOption(responseType, code, numbers) {
+  if (responseType === "color") return { code: code, id: numbers[code], image: swatchImage(numbers[code]) };
+  if (responseType === "shape") return { code: code, id: numbers[code], image: outlineImage(numbers[code]) };
+  return { code: code, id: code, image: "" };
+}
+
+function testOptions(row, numbers) {
   return getOptionNumbers(row).map(function(i) {
-    return {
-      code: row[`opt${i}`],
-      id: row[`opt${i}_id`],
-      image: row[`opt${i}_image`],
+    return Object.assign(makeOption(row.response_type, row[`opt${i}`], numbers), {
       key: row[`key_opt${i}`],
       strategy: row[`strategy_opt${i}`],
-    };
+    });
   });
 }
 
 // The answer options for one-back checks, built from the training rows:
 // every kid, every color (swatch) and every shape (outline) in the design.
 function designOptions(training) {
-  function unique(codeKey, make) {
-    return [...new Map(training.map(function(row) { return [row[codeKey], make(row)]; })).values()]
-      .sort(function(a, b) { return a.code.localeCompare(b.code); });
+  const numbers = roleNumbers(training);
+  function unique(type, values) {
+    return [...new Set(values)].sort().map(function(code) { return makeOption(type, code, numbers); });
   }
   return {
-    kid: [...new Set(training.map(function(row) { return row.kid; }))].map(function(kid) {
-      return { code: kid, id: kid, image: "" };
-    }),
-    color: unique("color", function(row) { return { code: row.color, id: row.color_id, image: row.color_image }; }),
-    shape: unique("shape", function(row) { return { code: row.shape, id: row.shape_id, image: row.shape_image }; }),
+    kid: unique("kid", training.map(function(row) { return row.kid; })),
+    color: unique("color", training.map(function(row) { return row.color_role; })),
+    shape: unique("shape", training.map(function(row) { return row.shape_role; })),
   };
 }
 
@@ -655,7 +678,6 @@ function buildChoiceTrial(stimulus, responseType, options, correctCode, data) {
       d.response_position = d.response + 1;
       d.response_code = selected.code;
       d.response_id = selected.id;
-      d.response_key = selected.key || "";
       d.strategy = selected.strategy || "";
       d.is_correct = correctCode ? selected.code === correctCode : "";
     },
@@ -668,7 +690,7 @@ function buildTrainingTrial(row, trainingBlock, trialNum) {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
       <div class="page drawing-page">
-        ${drawingHTML(row.image, jitter)}
+        ${drawingHTML(drawingImage(row), jitter)}
         <p class="drawing-caption"><b>${row.kid}</b> drew this.</p>
       </div>
     `,
@@ -693,6 +715,9 @@ const ONE_BACK_QUESTIONS = {
   shape: "What shape was the last drawing?",
 };
 
+// The trial-list column holding each attention check's correct answer.
+const ONE_BACK_ANSWER = { kid: "kid", color: "color_role", shape: "shape_role" };
+
 // Attention check right after a training drawing, asking about that drawing.
 function buildOneBackTrial(prevRow, checkType, options, trainingBlock, trialNum) {
   return buildChoiceTrial(
@@ -703,7 +728,7 @@ function buildOneBackTrial(prevRow, checkType, options, trainingBlock, trialNum)
     `,
     checkType,
     options[checkType],
-    prevRow[checkType],
+    prevRow[ONE_BACK_ANSWER[checkType]],
     Object.assign({}, prevRow, {
       inductionsave: true,
       subjCode: participantId,
@@ -728,13 +753,13 @@ function oneBackSchedule(nDrawings, count, typeOrder) {
   return schedule;
 }
 
-function buildTestTrial(row, trialNum) {
+function buildTestTrial(row, numbers, trialNum) {
   const jitter = drawingTilt(TEST_FIGURE_TOKEN);
   // category_only trials name the kid but show only a blank space where
   // the drawing would be; most_frequent_shape trials show no drawing at all.
   let figure = "";
-  if (row.figure_image) {
-    figure = drawingHTML(row.figure_image, jitter);
+  if (row.shape_name) {
+    figure = drawingHTML(drawingImage(row), jitter);
   } else if (row.test_type === "category_only") {
     figure = `<div class="hidden-shape"></div>`;
   }
@@ -748,53 +773,59 @@ function buildTestTrial(row, trialNum) {
       </div>
     `,
     row.response_type,
-    testOptions(row),
+    testOptions(row, numbers),
     row.correct_answer,
     Object.assign({}, row, {
       inductionsave: true,
       subjCode: participantId,
       phase: "test",
       trial_num: trialNum,
-      rotation: row.figure_image ? jitter.rotation : "",
-      scale: row.figure_image ? jitter.scale : "",
+      rotation: row.shape_name ? jitter.rotation : "",
+      scale: row.shape_name ? jitter.scale : "",
     })
   );
 }
 
-// Columns left out of the saved data: design always equals condition (one
-// design per condition); image paths (shape_id/color_id/opt*_id name the
-// stimuli); response_type (follows from test_type/attention_check_type);
-// response_position (response holds the chosen option itself).
-function isDroppedInductionColumn(c) {
-  return ["design", "image", "response_type", "response_position"].includes(c) || c.endsWith("_image");
-}
-
-// Saved-data names for internal data fields.
-const INDUCTION_RENAMED_COLUMNS = { id: "stimulus", response_code: "response" };
-
-// Fixed column order for the tidy induction CSV: one row per training
-// drawing, one-back check and test trial, with every column from both trial
-// lists plus what happened on the trial. Columns that don't apply to a
-// row's phase are left blank.
-function inductionCSVColumns(trainingRows, testRows) {
-  return [...new Set([
-    "subjCode", "random_seed", "trial_type", "phase", "training_block", "trial_num", "attention_check_type",
-    ...Object.keys(trainingRows[0] || {}),
-    ...Object.keys(testRows[0] || {}),
-    "rotation", "scale", "response_type", "option_order",
-    "response_position", "response_code", "response_id", "response_key", "strategy",
-    "correct_answer", "is_correct", "rt",
-  ])].filter(function(c) { return !isDroppedInductionColumn(c); });
-}
-
-function buildInductionCleanCSV(columns) {
-  const rows = jsPsych.data.get().filter({ inductionsave: true }).trials.map(function(t) {
-    const row = {};
-    columns.forEach(function(c) { row[INDUCTION_RENAMED_COLUMNS[c] || c] = t[c] !== undefined ? t[c] : ""; });
-    // trial_type is required for OSF to accept the data (same fix as FIT/IRQ):
-    // training drawings, attention checks (also phase "training") or test.
-    row.trial_type = t.attention_check_type ? "attention_check" : t.phase;
-    return row;
+// The tidy induction CSV: one row per training drawing, attention check and
+// test trial, recording what happened. Everything fixed by the design (the
+// prompt, the options and their answer keys and strategy codes, image files)
+// is in test_trials.csv / training_trials.csv, joined by `stimulus`.
+function buildInductionCleanCSV() {
+  const blank = function(v) { return v === undefined || v === null || v === "none" ? "" : v; };
+  const rows = jsPsych.data.get().filter({ inductionsave: true }).trials.map(function(t, i) {
+    return {
+      subjCode: t.subjCode,
+      random_seed: t.random_seed,
+      questionnaire_order: t.questionnaire_order,
+      // trial_type is required for OSF to accept the data (same fix as FIT/IRQ)
+      trial_type: t.attention_check_type ? "attention_check" : t.phase,
+      training_block: blank(t.training_block),
+      trial_num: t.trial_num,
+      trial_index: i + 1,
+      time_elapsed: blank(t.time_elapsed),
+      stimulus: t.stimulus,
+      trial_id: t.phase === "test" ? t.id : "",
+      test_type: blank(t.test_type),
+      trial_group: blank(t.trial_group),
+      attention_check_type: blank(t.attention_check_type),
+      kid: blank(t.kid),
+      shape_role: blank(t.shape_role),
+      shape: blank(t.shape),
+      color_role: blank(t.color_role),
+      color: blank(t.color),
+      shape_name: blank(t.shape_name),
+      rotation: blank(t.rotation),
+      option_order: blank(t.option_order),
+      // what was chosen, as its role code (or the kid's name) and as the
+      // chosen color's or shape's file number (or the kid's name), like
+      // shape_role/shape and color_role/color
+      response_role: blank(t.response_code),
+      response: blank(t.response_id),
+      strategy: blank(t.strategy),
+      correct_answer: blank(t.correct_answer),
+      is_correct: t.is_correct === true ? 1 : t.is_correct === false ? 0 : "",
+      rt: blank(t.rt),
+    };
   });
   return Papa.unparse(rows);
 }
@@ -872,18 +903,22 @@ function buildInstructions(kids, exampleDrawing) {
 // trainingBlocks: one shuffled array of training rows per training block.
 // checksPerBlock: one-back checks in each training block.
 // test: the shuffled test rows.
+// design: all 24 training drawings (in demo mode the blocks show only some,
+//   but the answer options and role numbers come from the full design).
 // exampleDrawing: this condition's instructions example drawing.
-function buildInductionTimeline(trainingBlocks, checksPerBlock, test, columns, exampleDrawing) {
+function buildInductionTimeline(trainingBlocks, checksPerBlock, test, design, exampleDrawing) {
   const timeline = [];
   const allTraining = trainingBlocks.flat();
-  const options = designOptions(allTraining);
+  const options = designOptions(design);
   const kids = options.kid.map(function(option) { return option.id; });
 
+  const numbers = roleNumbers(design);
   const images = [exampleDrawing];
-  allTraining.forEach(function(row) { images.push(row.image, row.color_image, row.shape_image); });
+  allTraining.forEach(function(row) { images.push(drawingImage(row)); });
+  Object.values(options).flat().forEach(function(option) { if (option.image) images.push(option.image); });
   test.forEach(function(row) {
-    if (row.figure_image) images.push(row.figure_image);
-    testOptions(row).forEach(function(option) { if (option.image) images.push(option.image); });
+    if (row.shape_name) images.push(drawingImage(row));
+    testOptions(row, numbers).forEach(function(option) { if (option.image) images.push(option.image); });
   });
   timeline.push({
     type: jsPsychPreload,
@@ -937,20 +972,20 @@ function buildInductionTimeline(trainingBlocks, checksPerBlock, test, columns, e
   });
 
   test.forEach(function(row, i) {
-    timeline.push(buildTestTrial(row, i + 1));
+    timeline.push(buildTestTrial(row, numbers, i + 1));
   });
 
   pushSaveTimeline(timeline, sessionFilename("induction"), function() {
-    return buildInductionCleanCSV(columns);
+    return buildInductionCleanCSV();
   });
 
   return timeline;
 }
 
 // ---------------------------------------------------------------------------
-// Setup screen: subject code, random seed, condition, demo mode,
+// Setup screen: subject code, random seed, demo mode,
 // questionnaire order. Any of these can be pre-filled via URL params
-// (?subjCode=..., ?seed=..., ?condition=high|low, ?demo=true,
+// (?subjCode=..., ?seed=..., ?demo=true,
 // ?questionnaireOrder=0|1, where 0 = IRQ then FIT and 1 = FIT then IRQ) but
 // the researcher/participant still has to confirm by pressing "Start".
 // ---------------------------------------------------------------------------
@@ -960,8 +995,6 @@ function promptForParameters(urlParams) {
     const prefillSubj = urlParams.get("subjCode") || urlParams.get("subject") || urlParams.get("subj") || "";
     const prefillDemo = /^(1|true|yes)$/i.test((urlParams.get("demo") || "").trim());
     const prefillSeed = (urlParams.get("seed") || "").trim();
-    const conditionParam = (urlParams.get("condition") || "").trim().toLowerCase();
-    const prefillCondition = { "high": "high_nameability", "high_nameability": "high_nameability", "low": "low_nameability", "low_nameability": "low_nameability" }[conditionParam] || "";
     const orderParam = (urlParams.get("questionnaireOrder") || "").trim().toLowerCase();
     const prefillOrder = { "0": "irq_first", "irq_first": "irq_first", "1": "fit_first", "fit_first": "fit_first" }[orderParam] || "";
 
@@ -975,14 +1008,6 @@ function promptForParameters(urlParams) {
         </label>
         <label>Random seed
           <input type="text" name="seed" required>
-        </label>
-        <label>Condition
-          <select name="condition" required>
-            <option value="" disabled selected hidden></option>
-            ${Object.entries(CONDITIONS).map(function([value, label]) {
-              return `<option value="${value}">${label}</option>`;
-            }).join("")}
-          </select>
         </label>
         <label>Questionnaire order
           <select name="questionnaireOrder" required>
@@ -1006,7 +1031,6 @@ function promptForParameters(urlParams) {
     form.subjCode.value = prefillSubj;
     form.seed.value = prefillSeed;
     form.demo.checked = prefillDemo;
-    if (prefillCondition) form.condition.value = prefillCondition;
     if (prefillOrder) form.questionnaireOrder.value = prefillOrder;
     form.subjCode.focus();
 
@@ -1014,11 +1038,10 @@ function promptForParameters(urlParams) {
       event.preventDefault();
       const subjCode = form.subjCode.value.trim();
       const seed = form.seed.value.trim();
-      const condition = form.condition.value;
       const questionnaireOrder = form.questionnaireOrder.value;
-      if (!subjCode || !seed || !condition || !questionnaireOrder) {
+      if (!subjCode || !seed || !questionnaireOrder) {
         errorEl.textContent = "Please fill in all fields.";
-        (!subjCode ? form.subjCode : !seed ? form.seed : !condition ? form.condition : form.questionnaireOrder).focus();
+        (!subjCode ? form.subjCode : !seed ? form.seed : form.questionnaireOrder).focus();
         return;
       }
 
@@ -1026,7 +1049,6 @@ function promptForParameters(urlParams) {
       resolve({
         subjectID: subjCode,
         seed: seed,
-        condition: condition, // "high_nameability" | "low_nameability"
         demoMode: form.demo.checked,
         questionnaireOrder: questionnaireOrder, // "fit_first" | "irq_first"
       });
@@ -1047,7 +1069,7 @@ const jsPsych = initJsPsych({
 
 async function runExperiment() {
   const urlParams = new URLSearchParams(window.location.search);
-  const { subjectID, seed, condition, demoMode, questionnaireOrder } = await promptForParameters(urlParams);
+  const { subjectID, seed, demoMode, questionnaireOrder } = await promptForParameters(urlParams);
 
   // Seed every jsPsych.randomization call and Math.random (trial order,
   // option order, drawing jitter, questionnaire item order) so
@@ -1059,7 +1081,7 @@ async function runExperiment() {
   jsPsych.data.addProperties({
     participant_id: participantId,
     random_seed: seed,
-    condition: condition,
+    condition: CONDITION,
     questionnaire_order: questionnaireOrder,
   });
 
@@ -1077,12 +1099,12 @@ async function runExperiment() {
 
   // Each condition has one fixed design (which shapes/colors fill the
   // demo's roles), as in the advisor's demo.
-  const training = trainingList.filter(function(row) { return row.condition === condition; });
+  const training = trainingList.filter(function(row) { return row.condition === CONDITION; });
   let trainingBlocks = Array.from({ length: TRAINING_BLOCKS }, function() {
     return jsPsych.randomization.shuffle(training);
   });
   let checksPerBlock = ONE_BACK_CHECKS_PER_BLOCK;
-  let test = jsPsych.randomization.shuffle(testList.filter(function(row) { return row.condition === condition; }));
+  let test = jsPsych.randomization.shuffle(testList.filter(function(row) { return row.condition === CONDITION; }));
   if (demoMode) {
     trainingBlocks = [trainingBlocks[0].slice(0, DEMO_TRAINING_COUNT)];
     checksPerBlock = DEMO_CHECKS;
@@ -1099,8 +1121,8 @@ async function runExperiment() {
 
   const timeline = [];
   timeline.push(...buildInductionTimeline(
-    trainingBlocks, checksPerBlock, test, inductionCSVColumns(trainingList, testList),
-    `images/${condition}/instruction_examples/shapeA_ex1.svg`
+    trainingBlocks, checksPerBlock, test, training,
+    `images/${CONDITION}/instruction_examples/shapeA_ex1.svg`
   ));
 
   timeline.push({

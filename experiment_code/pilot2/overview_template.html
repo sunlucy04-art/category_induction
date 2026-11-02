@@ -60,19 +60,20 @@ section{padding:28px 0 8px}
 .prompt{font-size:20px;margin:0 0 12px}
 .question{font-size:18px;margin:12px 0 18px}
 .swatches{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
-.opt{width:84px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.opt{width:118px;display:flex;flex-direction:column;align-items:center;gap:6px}
 .sw{width:64px;height:64px;border-radius:10px;border:1px solid rgba(0,0,0,.25);padding:0;cursor:pointer}
 .sw[aria-pressed="true"],.shape-opt[aria-pressed="true"],.name-opt[aria-pressed="true"]{outline:3px solid var(--canvas-ink);outline-offset:3px}
 .shape-opt{width:76px;height:76px;padding:4px;background:#FFFFFF;border:1px solid rgba(0,0,0,.25);border-radius:10px;display:flex;align-items:center;justify-content:center}
 .name-opt{min-width:76px;background:#FFFFFF;color:#222324;border:1px solid rgba(0,0,0,.25)}
 .code{font-size:13px;color:var(--canvas-muted)}
-.pill{font-size:12px;line-height:1.3;padding:3px 7px;border-radius:6px;text-align:center}
+.why{font-size:12px;line-height:1.35;color:var(--canvas-muted);margin-top:3px}
+.pill{font-size:11px;line-height:1.3;padding:3px 7px;border-radius:6px;text-align:center;overflow-wrap:anywhere}
 .p-cat{background:#DCE7F2;color:#1F4466}.p-conj{background:#F4E4CC;color:#6E4100}
 .p-link{background:#D8EEDF;color:#1E5A37}.p-reas{background:#E6DEF2;color:#4B347A}.p-foil{background:#E2E3E4;color:#45494D}
 .hidden-shape{width:170px;height:170px;margin:0 auto}
 details{margin-top:12px}
 summary{cursor:pointer;color:var(--muted)}
-.leg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:12px 0 4px}
+.leg-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:12px 0 4px}
 .leg-h{font-weight:700;margin-bottom:8px}
 .leg-list{display:flex;flex-direction:column;gap:8px}
 .leg-row{display:flex;align-items:center;gap:12px;font-size:14px}
@@ -107,8 +108,6 @@ footer{color:var(--muted);font-size:14px;padding:32px 0 40px}
 
 <div class="wrap">
   <div class="toolbar">
-    <span class="lead">Condition</span>
-    <span class="seg" role="group" aria-label="Condition" id="condSeg"></span>
     <label class="tog"><input type="checkbox" id="keyT" checked> Show answer key</label>
     <label class="tog"><input type="checkbox" id="shufT"> Shuffle option order</label>
   </div>
@@ -117,6 +116,7 @@ footer{color:var(--muted);font-size:14px;padding:32px 0 40px}
     <div class="leg-grid">
       <div><div class="leg-h">Colors</div><div class="leg-list" id="colLegend"></div></div>
       <div><div class="leg-h">Shapes</div><div class="leg-list" id="shapeLegend"></div></div>
+      <div><div class="leg-h">Strategy codes (answer key)</div><div class="leg-list" id="stratLegend"></div></div>
     </div>
   </details>
   <details>
@@ -194,11 +194,11 @@ const TYPE_LABEL = {
   who_drew: "who drew this?", memory_probe: "color memory", most_frequent_shape: "most frequent shape",
 };
 const TYPE_TESTS = {
-  agree: "A baseline and attention check. The kid's usual color is also the color they always used on this shape, so every way of reasoning gives the same answer.",
-  classic_disagree: "Whether people reason from the kid's category as a whole (the kid's usual color) or from what that kid did with this particular shape (the color they mostly used on it).",
-  cross_category_conflict: "Whether people reason from the given feature, the kid named as the drawer (that kid's usual color), or from the shape's broader association, treating the drawing as if the kid who normally draws that shape made it (that kid's usual color, or the color the shape usually had).",
-  category_only: "Whether people learned each kid's usual color, with no shape to pull them toward anything else.",
-  kid_not_named: "With no kid named, whether people infer the drawer from the shape and use that kid's usual color, or go by the color the shape itself usually had. S3 is a control, since every kid draws it.",
+  agree: "A baseline and attention check. The kid's usual color is also the color they always used on this shape, so every way of reasoning gives the same answer (most_frequent_color_kid_match and conjunction_kid_match are the same option).",
+  classic_disagree: "Whether people reason from the kid's category as a whole (most_frequent_color_kid_match: the kid's usual color) or from what that kid did with this particular shape (conjunction_kid_match: the color they mostly used on it).",
+  cross_category_conflict: "Whether people reason from the given feature, the kid named as the drawer (most_frequent_color_kid_match: that kid's usual color), or from the shape's broader association, treating the drawing as if the kid who normally draws that shape made it (most_frequent_color_other_kid: that kid's usual color, or conjunction_other_kid: the color the shape usually had).",
+  category_only: "Whether people learned each kid's usual color (most_frequent_color_kid_match), with no shape to pull them toward anything else.",
+  kid_not_named: "With no kid named, whether people infer the drawer from the shape and use that kid's usual color (most_frequent_color_other_kid), or go by the color the shape itself usually had (conjunction_other_kid). S3 is a control, since every kid draws it.",
   who_drew: "Memory for who drew a training drawing",
   memory_probe: "Memory for the color a kid used on a shape",
   most_frequent_shape: "Memory for which shape a kid drew most",
@@ -235,12 +235,14 @@ function fig(shape, fill, size, rotation) {
   return `<svg class="fig" viewBox="0 0 256 256" width="${size}" height="${size}" aria-hidden="true"><path d="${s.d}" fill="${fill || "#FFFFFF"}" stroke="#2A2A2A" stroke-width="${w.toFixed(2)}" stroke-linejoin="round" transform="rotate(${rotation || 0} 128 128)"/></svg>`;
 }
 
-function pillClass(key) {
-  if (/^correct/.test(key)) return "p-link";
-  if (/category answer|usual, and all/.test(key)) return "p-cat";
-  if (/conjunction/.test(key)) return "p-conj";
-  if (/shape-based/.test(key)) return "p-link";
-  if (/as if|guess/.test(key)) return "p-reas";
+// Pill color by strategy code (see option_strategy in generate_design.py);
+// foils (named_kid_other_color, most_frequent_unrelated_kid, never_used and
+// the memory error codes) stay grey.
+function pillClass(strategy) {
+  if (strategy === "most_frequent_color_kid_match") return "p-cat";
+  if (strategy === "conjunction_kid_match") return "p-conj";
+  if (strategy === "conjunction_other_kid" || strategy === "correct") return "p-link";
+  if (strategy === "most_frequent_color_other_kid") return "p-reas";
   return "p-foil";
 }
 
@@ -252,7 +254,11 @@ function optionHTML(type, code, pressed, key, pos, strategy) {
   if (type === "color") btn = `<button class="sw" data-code="${code}" aria-pressed="${pressed}" style="background:${hex(code)}" aria-label="Color option ${pos + 1}${showKey ? `, ${code}` : ""}"></button>`;
   else if (type === "shape") btn = `<button class="shape-opt" data-code="${code}" aria-pressed="${pressed}" aria-label="Shape option ${pos + 1}${showKey ? `, ${code}` : ""}">${fig(code, null, 64)}</button>`;
   else btn = `<button class="name-opt" data-code="${esc(code)}" aria-pressed="${pressed}">${esc(code)}</button>`;
-  const extra = showKey ? `${type !== "kid" ? `<div class="code">${code}</div>` : ""}${key ? `<div class="pill ${pillClass(key)}">${esc(key)}</div>` : ""}${strategy ? `<div class="code">${esc(strategy)}</div>` : ""}` : "";
+  // pills: the option's strategy code(s); attention checks have no code, only "correct"
+  const codes = strategy ? strategy.split("-") : key === "correct" ? ["correct"] : [];
+  const pills = codes.map(s => `<div class="pill ${pillClass(s)}">${esc(s)}</div>`).join("");
+  const why = key && strategy ? `<div class="why">${esc(key)}</div>` : "";
+  const extra = showKey ? `${type !== "kid" ? `<div class="code">${code}</div>` : ""}${pills}${why}` : "";
   return `<div class="opt">${btn}${extra}</div>`;
 }
 
@@ -261,7 +267,7 @@ function renderIntro() {
   $("headSub").textContent = `A walkthrough of the pilot 2 session: three kids, four shapes, five colors. Participants see the ${DATA.training.length} training drawings ${S.trainingBlocks} times with attention checks, then ${DATA.tests.length} test trials (${nPred} predictions about new drawings and ${DATA.tests.length - nPred} memory questions). Turn on the answer key to see which strategy each choice reflects.`;
   const drawMin = Math.round(S.trainingBlocks * DATA.training.length * (S.drawingMs + S.gapMs) / 6000) / 10;
   $("steps").innerHTML = [
-    "Setup: subject code, random seed, nameability condition (between-subject), questionnaire order.",
+    "Setup: subject code, random seed, questionnaire order.",
     "Instructions (3 pages: the task is to learn which drawings belong to which kid; overview of the learning, question and questionnaire phases; one example drawing). No practice. The researcher presses Q to start.",
     `Training: ${S.trainingBlocks} blocks of ${DATA.training.length} drawings + ${S.checksPerBlock} attention checks (drawings timed, ~${drawMin} min in total), with a self-paced break between blocks.`,
     `Test: ${DATA.tests.length} self-paced trials, prediction and memory shuffled together.`,
@@ -270,7 +276,21 @@ function renderIntro() {
   ].map(s => `<li>${s}</li>`).join("");
 }
 
+const STRATEGY_LEGEND = [
+  ["most_frequent_color_kid_match", "the named kid's most frequent color"],
+  ["conjunction_kid_match", "the color the named kid mostly used on this shape"],
+  ["conjunction_other_kid", "the color this shape mostly had, when a different kid drew it"],
+  ["most_frequent_color_other_kid", "the most frequent color of the kid who usually draws this shape"],
+  ["named_kid_other_color", "a less frequent color of the named kid's, from other shapes"],
+  ["most_frequent_unrelated_kid", "the most frequent color of a kid unrelated to the trial"],
+  ["never_used", "a color the named kid never used (no kid named: never on this shape)"],
+  ["correct", "memory questions: the right answer"],
+];
+
 function renderLegend() {
+  $("stratLegend").innerHTML = STRATEGY_LEGEND.map(([s, text]) =>
+    `<div class="leg-row"><span class="pill ${pillClass(s)}">${s}</span><span>${text}</span></div>`).join("") +
+    `<div class="leg-row"><span>An option with two pills fits both strategies (saved joined with "-").</span></div>`;
   const t = DATA.training;
   $("colLegend").innerHTML = COLOR_CODES.map(c => {
     const owner = KIDS.find(k => usual[k] === c);
@@ -314,7 +334,7 @@ function renderTrain() {
 }
 function renderCheck(it) {
   const split = [0, 1, 2].map(i => Math.floor((S.checksPerBlock + 2 - i) / 3)).join("/");
-  $("checkNote").textContent = `After ${S.checksPerBlock} randomly chosen drawings in each block, participants answer one question about the drawing they just saw. The three question types are split ${split} within a block, rotating which type gets fewer. Shown here for the drawing above.`;
+  $("checkNote").textContent = `After ${S.checksPerBlock} randomly chosen drawings in each block, participants answer one question about the drawing they just saw. The three question types are split ${split} within a block${S.checksPerBlock % 3 ? ", rotating which type gets fewer" : ""}. Shown here for the drawing above.`;
   $("checkTabs").innerHTML = Object.entries(CHECKS).map(([c, [label]]) => `<button data-c="${c}" aria-pressed="${c === checkType}">${label}</button>`).join("");
   $("checkTabs").querySelectorAll("button").forEach(b => b.onclick = () => { checkType = b.dataset.c; checkPick = null; renderTrain(); });
   $("checkQ").textContent = CHECKS[checkType][1];
@@ -382,11 +402,7 @@ function renderCounts() {
   $("demoNote").textContent = `Demo mode (?demo=true) runs ${S.demoDrawings} drawings with one attention check of each type, then ${S.demoTests} test trials that always include every test type.`;
 }
 
-function renderCond() {
-  $("condSeg").innerHTML = Object.entries(DATA.conditions).map(([k, c]) => `<button data-k="${k}" aria-pressed="${k === condition}">${c.label}</button>`).join("");
-  $("condSeg").querySelectorAll("button").forEach(b => b.onclick = () => { condition = b.dataset.k; renderAll(); });
-}
-function renderAll() { renderCond(); renderLegend(); renderTrain(); renderTest(); }
+function renderAll() { renderLegend(); renderTrain(); renderTest(); }
 
 $("keyT").onchange = () => { renderTrain(); renderTest(); };
 $("shufT").onchange = () => { order = null; renderTest(); };

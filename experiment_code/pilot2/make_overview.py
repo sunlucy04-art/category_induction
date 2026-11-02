@@ -4,7 +4,7 @@ Build kids_drawings_pilot2_demo.html: a self-contained walkthrough of the pilot 
 
 Everything on the page comes from the real experiment files, so re-run
 this after changing the design:
-  training_trials.csv / test_trials.csv / design_roles.csv  structure, trials, answer keys
+  training_trials.csv / test_trials.csv / shape_color_roles.csv  structure, trials, answer keys
   images/*/shape_outlines/*.svg                                 traced shape outlines
   images/*/colors/*.png                                         color values
   experiment.js                                                 block/check/timing/demo settings
@@ -71,14 +71,14 @@ def swatch_hex(path):
 def main():
     training = read_csv("training_trials.csv")
     tests = read_csv("test_trials.csv")
-    roles = read_csv("design_roles.csv")
+    roles = read_csv("shape_color_roles.csv")
 
     # The structure and test trials are the same in every condition (in S/C
     # codes), so take them from the first one.
     first = training[0]["design"]
     data = {
         "settings": read_settings(),
-        "training": [dict(kid=r["kid"], shape=r["shape"], color=r["color"], token=int(r["token"][1:])) for r in training if r["design"] == first],
+        "training": [dict(kid=r["kid"], shape=r["shape_role"], color=r["color_role"], token=int(r["token"][1:])) for r in training if r["design"] == first],
         "tests": [],
         "conditions": {},
     }
@@ -89,21 +89,24 @@ def main():
             options.append({"code": r[f"opt{i}"], "key": r[f"key_opt{i}"], "strategy": r[f"strategy_opt{i}"]})
             i += 1
         data["tests"].append({k: r[k] for k in (
-            "id", "test_type", "kid", "shape", "prompt", "question", "response_type",
-            "color", "correct_answer", "ans_category", "ans_within_conjunction",
-            "ans_shape_based", "ans_as_if_other_kid", "diagnostic_for")} | {"options": options})
+            "id", "test_type", "kid", "prompt", "question", "response_type",
+            "correct_answer", "ans_category", "ans_within_conjunction",
+            "ans_shape_based", "ans_as_if_other_kid", "diagnostic_for")}
+            # the page is written in role codes (S1, C5), not file numbers
+            | {"shape": r["shape_role"], "color": r["color_role"], "options": options})
 
-    for r in roles:
+    # Pilot 2 only runs the high nameability stimuli.
+    for r in (r for r in roles if r["condition"] == "high_nameability"):
         condition = data["conditions"].setdefault(r["condition"], {
             "label": CONDITION_LABELS.get(r["condition"], r["condition"]), "shapes": {}, "colors": {}})
         image_dir = ROOT / "images" / r["condition"]
         if r["role"].startswith("S"):
-            shape = read_svg_path(image_dir / "shape_outlines" / f"{r['stimulus_id']}.svg")
-            shape |= {"id": r["stimulus_id"], "num": int(re.search(r"(\d+)$", r["stimulus_id"]).group(1))}
+            shape = read_svg_path(image_dir / "shape_outlines" / f"{r['file_name']}.svg")
+            shape |= {"id": r["file_name"], "num": int(r["number"])}
             condition["shapes"][r["role"]] = shape
         else:
             condition["colors"][r["role"]] = {
-                "id": r["stimulus_id"], "hex": swatch_hex(image_dir / "colors" / f"{r['stimulus_id']}.png")}
+                "id": r["file_name"], "hex": swatch_hex(image_dir / "colors" / f"{r['file_name']}.png")}
 
     page = TEMPLATE.read_text().replace("/*__DATA__*/null", json.dumps(data, separators=(",", ":")))
     OUT.write_text(page)

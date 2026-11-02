@@ -1,0 +1,19 @@
+condition,role,kind,number,file_name,color_name,job
+high_nameability,S1,shape,13,high_shape13,,"Lucy's own shape (only Lucy draws it, mostly in C5)"
+high_nameability,S2,shape,1,high_shape1,,"Sam's own shape (only Sam draws it, mostly in C5)"
+high_nameability,S3,shape,10,high_shape10,,"drawn by every kid, each in their own most frequent color"
+high_nameability,S4,shape,7,high_shape7,,"Ana's own shape (only Ana draws it, always in C4)"
+high_nameability,C1,color,1,high_color1,red,Lucy's most frequent color
+high_nameability,C2,color,4,high_color4,blue,Sam's most frequent color
+high_nameability,C3,color,3,high_color3,yellow,Ana's most frequent color
+high_nameability,C4,color,2,high_color2,orange,the color of every S4
+high_nameability,C5,color,5,high_color5,purple,the less frequent color on Lucy's S1s and Sam's S2s
+low_nameability,S1,shape,13,low_shape13,,"Lucy's own shape (only Lucy draws it, mostly in C5)"
+low_nameability,S2,shape,1,low_shape1,,"Sam's own shape (only Sam draws it, mostly in C5)"
+low_nameability,S3,shape,10,low_shape10,,"drawn by every kid, each in their own most frequent color"
+low_nameability,S4,shape,7,low_shape7,,"Ana's own shape (only Ana draws it, always in C4)"
+low_nameability,C1,color,1,low_color1,dusty pink,Lucy's most frequent color
+low_nameability,C2,color,10,low_color10,slate,Sam's most frequent color
+low_nameability,C3,color,2,low_color2,terracotta,Ana's most frequent color
+low_nameability,C4,color,3,low_color3,olive,the color of every S4
+low_nameability,C5,color,6,low_color6,pale lime,the less frequent color on Lucy's S1s and Sam's S2s
