@@ -842,22 +842,23 @@ function buildInstructions(kids, exampleDrawing) {
         <div class="instructions-block">
           <h2>Welcome</h2>
           <p>In this study, you will look at drawings made by three kids. Each drawing is a simple shape colored in with one color.</p>
-          <p>Your job is to learn which drawings belong to which kid.</p>
+          <p><strong>Your job is to learn which drawings belong to which kid.</strong></p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>The study has three parts:</p>
-          <p><b>1. Learning phase.</b> You will see the kids' drawings one at a time, each with the name of the kid who drew it. Just watch and learn which drawings each kid made. Every so often, you will be asked a quick question about the drawing you just saw, to check that you are paying attention. There will be a few short breaks along the way to rest your eyes.</p>
-          <p><b>2. Question phase.</b> You will answer questions about the drawings.</p>
-          <p><b>3. Questionnaire phase.</b> You will fill out a few short questionnaires. When you finish the last questionnaire, the study is complete.</p>
+          <h3>The study has three main parts:</h3>
+          <p><b>1. Learning phase.</b> You will see the kids' drawings one at a time, each with the name of the kid who drew it. <strong>Pay close attention!</strong> You will have to answer questions later. There will be a few short breaks along the way to rest your eyes.</p>
+          <p><b>2. Question phase.</b> You will answer some questions about the drawings.</p>
+          <p><b>3. Questionnaire phase.</b> You will fill out a few short questionnaires and when you finish the final questionnaire, the study is complete.</p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
       `
         <div class="instructions-block">
-          <p>In the learning phase, each drawing will look something like this (this kid and drawing are just an example and are not part of the study):</p>
+          <h2>Learning Phase</h2>
+          <p>In the learning phase, each drawing will look something like this:</p>
           ${drawingHTML(exampleDrawing, { rotation: 0, scale: 1 })}
           <p class="drawing-caption"><b>${INSTRUCTION_KID}</b> drew this.</p>
           <p>Each drawing is only on the screen for a few seconds, so <b>pay close attention</b>.</p>
@@ -877,8 +878,8 @@ function buildInstructions(kids, exampleDrawing) {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
       <div class="instructions-block">
-        <h2>Ready to begin</h2>
-        <p>Take as much time as you need to answer each question.</p>
+        <h2>Let the researcher know you are ready to begin</h2>
+        <p>Pay close attention and learn who draws what!</p>
       </div>
     `,
     choices: ["q"],
@@ -889,7 +890,7 @@ function buildInstructions(kids, exampleDrawing) {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
       <div class="instructions-block">
-        <p>In this study, you will see drawings made by ${listNames(kids)}.</p>
+        <p>Wait until the experimenter is out of the room.</p>
         <p>Press any key to begin the learning phase.</p>
       </div>
     `,
@@ -961,9 +962,10 @@ function buildInductionTimeline(trainingBlocks, checksPerBlock, test, design, ex
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
       <div class="instructions-block">
-        <h2>Great job!</h2>
-        <p>You are done with the learning phase.</p>
-        <p>Next is the <b>question phase</b>. You will answer various questions about the drawings by ${listNames(kids)}.</p>
+        <h2>Question Phase</h2>
+        <p>Great job! You are done with the learning phase.</p>
+        <p>Next is the <b>question phase</b>. You will answer various questions about the drawings.</p>
+        <p>Sometimes you will be asked to <strong>predict</strong> something about a <strong>new</strong> drawing and sometimes you will be asked to <strong>remember</strong> something about drawings you have already seen.</p>
         <p>Take as much time as you need to answer each question.</p>
         <p>Press any key to start the question phase.</p>
       </div>
@@ -1129,9 +1131,9 @@ async function runExperiment() {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
       <div class="instructions-block">
-        <h2>Great job!</h2>
-        <p>You are done with the question phase.</p>
-        <p>Next is the <b>questionnaire phase</b>. You will fill out a few short questionnaires. When you finish the last one, the study is complete.</p>
+        <h2>Questionnaire Phase</h2>
+        <p>Great job! You are done with the question phase.</p>
+        <p>Next is the <b>questionnaire phase</b>. You will fill out a few short questionnaires and be redirected to a final one in another window. When you finish the last one, the study is complete.</p>
         <p>Press any key to start the questionnaire phase.</p>
       </div>
     `,
