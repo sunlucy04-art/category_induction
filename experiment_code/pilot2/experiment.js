@@ -861,6 +861,7 @@ function buildInstructions(kids, exampleDrawing) {
           <p>In the learning phase, each drawing will look something like this:</p>
           ${drawingHTML(exampleDrawing, { rotation: 0, scale: 1 })}
           <p class="drawing-caption"><b>${INSTRUCTION_KID}</b> drew this.</p>
+          <p>Your job is to watch and see who draws what! Sometimes you might be asked a surprise question about the drawing you just saw.</p>
           <p>Each drawing is only on the screen for a few seconds, so <b>pay close attention</b>.</p>
           <p>Click "Next" to continue.</p>
         </div>
