@@ -3,11 +3,13 @@
 
   What this file does:
   1. Shows a setup screen asking for the subject code, the random seed,
-     whether to run in demo mode (a short single-block run), and the order of the two
-     questionnaires at the end (0: IRQ then FIT, or 1: FIT then IRQ) — any
-     of these can also be pre-filled via URL params.
+     the color version (1-5), whether to run in demo mode (a short
+     single-block run), and the order of the two questionnaires at the end
+     (0: IRQ then FIT, or 1: FIT then IRQ) — any of these can also be
+     pre-filled via URL params.
   2. Reads training_trials.csv and test_trials.csv (made by
-     generate_design.py) and keeps the high nameability rows. All
+     generate_design.py) and keeps the high nameability rows for this
+     participant's color version. All
      randomization (training and test order, one-back check placement,
      answer option order, questionnaire item order) is driven by the seed
      entered at setup, so the same seed reproduces the same session. Each
@@ -37,6 +39,11 @@ const TEST_CSV = "test_trials.csv";
 // Pilot 2 only runs the high nameability stimuli. Nameability isn't being
 // manipulated: the manipulation is the category design and the trial types.
 const CONDITION = "high_nameability";
+
+// Color counterbalancing: each version shuffles which real color plays each
+// color role (see COLOR_VERSIONS in generate_design.py). Chosen at the setup
+// screen and cycled through by the researcher so the counts stay balanced.
+const COLOR_VERSIONS = 5;
 
 // Training cycles through all 24 drawings this many times, in a fresh
 // random order each time.
@@ -796,6 +803,7 @@ function buildInductionCleanCSV() {
     return {
       subjCode: t.subjCode,
       random_seed: t.random_seed,
+      color_version: t.color_version,
       questionnaire_order: t.questionnaire_order,
       // trial_type is required for OSF to accept the data (same fix as FIT/IRQ)
       trial_type: t.attention_check_type ? "attention_check" : t.phase,
@@ -986,9 +994,9 @@ function buildInductionTimeline(trainingBlocks, checksPerBlock, test, design, ex
 }
 
 // ---------------------------------------------------------------------------
-// Setup screen: subject code, random seed, demo mode,
+// Setup screen: subject code, random seed, color version, demo mode,
 // questionnaire order. Any of these can be pre-filled via URL params
-// (?subjCode=..., ?seed=..., ?demo=true,
+// (?subjCode=..., ?seed=..., ?colorVersion=1-5, ?demo=true,
 // ?questionnaireOrder=0|1, where 0 = IRQ then FIT and 1 = FIT then IRQ) but
 // the researcher/participant still has to confirm by pressing "Start".
 // ---------------------------------------------------------------------------
@@ -1000,6 +1008,8 @@ function promptForParameters(urlParams) {
     const prefillSeed = (urlParams.get("seed") || "").trim();
     const orderParam = (urlParams.get("questionnaireOrder") || "").trim().toLowerCase();
     const prefillOrder = { "0": "irq_first", "irq_first": "irq_first", "1": "fit_first", "fit_first": "fit_first" }[orderParam] || "";
+    const versionParam = (urlParams.get("colorVersion") || "").trim();
+    const versions = Array.from({ length: COLOR_VERSIONS }, function(_, i) { return String(i + 1); });
 
     const overlay = document.createElement("div");
     overlay.id = "param-overlay";
@@ -1011,6 +1021,12 @@ function promptForParameters(urlParams) {
         </label>
         <label>Random seed
           <input type="text" name="seed" required>
+        </label>
+        <label>Color version
+          <select name="colorVersion" required>
+            <option value="" disabled selected hidden></option>
+            ${versions.map(function(v) { return `<option value="${v}">${v}</option>`; }).join("")}
+          </select>
         </label>
         <label>Questionnaire order
           <select name="questionnaireOrder" required>
@@ -1035,16 +1051,18 @@ function promptForParameters(urlParams) {
     form.seed.value = prefillSeed;
     form.demo.checked = prefillDemo;
     if (prefillOrder) form.questionnaireOrder.value = prefillOrder;
+    if (versions.includes(versionParam)) form.colorVersion.value = versionParam;
     form.subjCode.focus();
 
     form.addEventListener("submit", function(event) {
       event.preventDefault();
       const subjCode = form.subjCode.value.trim();
       const seed = form.seed.value.trim();
+      const colorVersion = form.colorVersion.value;
       const questionnaireOrder = form.questionnaireOrder.value;
-      if (!subjCode || !seed || !questionnaireOrder) {
+      if (!subjCode || !seed || !colorVersion || !questionnaireOrder) {
         errorEl.textContent = "Please fill in all fields.";
-        (!subjCode ? form.subjCode : !seed ? form.seed : form.questionnaireOrder).focus();
+        (!subjCode ? form.subjCode : !seed ? form.seed : !colorVersion ? form.colorVersion : form.questionnaireOrder).focus();
         return;
       }
 
@@ -1052,6 +1070,7 @@ function promptForParameters(urlParams) {
       resolve({
         subjectID: subjCode,
         seed: seed,
+        colorVersion: colorVersion, // "1" to "5"
         demoMode: form.demo.checked,
         questionnaireOrder: questionnaireOrder, // "fit_first" | "irq_first"
       });
@@ -1072,7 +1091,7 @@ const jsPsych = initJsPsych({
 
 async function runExperiment() {
   const urlParams = new URLSearchParams(window.location.search);
-  const { subjectID, seed, demoMode, questionnaireOrder } = await promptForParameters(urlParams);
+  const { subjectID, seed, colorVersion, demoMode, questionnaireOrder } = await promptForParameters(urlParams);
 
   // Seed every jsPsych.randomization call and Math.random (trial order,
   // option order, drawing jitter, questionnaire item order) so
@@ -1085,6 +1104,7 @@ async function runExperiment() {
     participant_id: participantId,
     random_seed: seed,
     condition: CONDITION,
+    color_version: colorVersion,
     questionnaire_order: questionnaireOrder,
   });
 
@@ -1100,14 +1120,15 @@ async function runExperiment() {
     readCSV(TEST_CSV),
   ]);
 
-  // Each condition has one fixed design (which shapes/colors fill the
-  // demo's roles), as in the advisor's demo.
-  const training = trainingList.filter(function(row) { return row.condition === CONDITION; });
+  // This participant's color version: the same design, with its own
+  // mapping of real colors to color roles.
+  const inVersion = function(row) { return row.condition === CONDITION && row.color_version === colorVersion; };
+  const training = trainingList.filter(inVersion);
   let trainingBlocks = Array.from({ length: TRAINING_BLOCKS }, function() {
     return jsPsych.randomization.shuffle(training);
   });
   let checksPerBlock = ONE_BACK_CHECKS_PER_BLOCK;
-  let test = jsPsych.randomization.shuffle(testList.filter(function(row) { return row.condition === CONDITION; }));
+  let test = jsPsych.randomization.shuffle(testList.filter(inVersion));
   if (demoMode) {
     trainingBlocks = [trainingBlocks[0].slice(0, DEMO_TRAINING_COUNT)];
     checksPerBlock = DEMO_CHECKS;

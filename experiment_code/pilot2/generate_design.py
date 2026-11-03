@@ -75,9 +75,23 @@ ROLE_JOBS = {
     "C5": "the less frequent color on Lucy's S1s and Sam's S2s",
 }
 COLOR_NAMES = {
-    "high_nameability": {"C1": "red", "C2": "blue", "C3": "yellow", "C4": "orange", "C5": "purple"},
-    "low_nameability": {"C1": "dusty pink", "C2": "slate", "C3": "terracotta", "C4": "olive", "C5": "pale lime"},
+    "high_color1": "red", "high_color4": "blue", "high_color3": "yellow", "high_color2": "orange", "high_color5": "purple",
+    "low_color1": "dusty pink", "low_color10": "slate", "low_color2": "terracotta", "low_color3": "olive", "low_color6": "pale lime",
 }
+
+# Color counterbalancing: participants get one of COLOR_VERSIONS versions
+# (chosen at the experiment's setup screen) that shuffle which real color
+# plays each color role. Version v shifts COLOR_ROLES' colors v - 1 places
+# along C1..C5, a Latin square: across the versions, every color plays every
+# role exactly once. Version 1 is COLOR_ROLES as written. Shapes are not
+# counterbalanced.
+COLOR_VERSIONS = 5
+
+
+def color_version(base, version):
+    codes = sorted(base)
+    return {code: base[codes[(i + version - 1) % len(codes)]] for i, code in enumerate(codes)}
+
 
 CONDITIONS = {
     "high_nameability": "images/high_nameability",
@@ -390,87 +404,90 @@ def main():
         for color_id in color_of.values():
             assert (ROOT / image_dir / "colors" / f"{color_id}.png").exists(), f"missing {color_id}"
 
-        design = condition
-        # Stimuli are identified by their file numbers (shape 13, color 5);
-        # shape_name is the file name the experiment shows (the traced SVGs
-        # made by prepare_nameability_stimuli.py): the filled drawing
-        # (high_shape13_high_color5) or the outline alone (high_shape13).
-        number = lambda file_id: int(re.search(r"(\d+)$", file_id).group(1))
-        shape_num = lambda code: number(shape_of[code]) if code in shape_of else ""
-        color_num = lambda code: number(color_of[code]) if code in color_of else ""
+        base_colors = color_of
+        for version in range(1, COLOR_VERSIONS + 1):
+            color_of = color_version(base_colors, version)
+            design = condition
+            # Stimuli are identified by their file numbers (shape 13, color 5);
+            # shape_name is the file name the experiment shows (the traced SVGs
+            # made by prepare_nameability_stimuli.py): the filled drawing
+            # (high_shape13_high_color5) or the outline alone (high_shape13).
+            number = lambda file_id: int(re.search(r"(\d+)$", file_id).group(1))
+            shape_num = lambda code: number(shape_of[code]) if code in shape_of else ""
+            color_num = lambda code: number(color_of[code]) if code in color_of else ""
 
-        for role, file_id in {**shape_of, **color_of}.items():
-            roles_out.append(dict(
-                condition=condition, role=role, kind="shape" if role.startswith("S") else "color",
-                number=number(file_id), file_name=file_id,
-                color_name=COLOR_NAMES[condition].get(role, ""), job=ROLE_JOBS[role]))
+            for role, file_id in {**shape_of, **color_of}.items():
+                roles_out.append(dict(
+                    condition=condition, color_version=version, role=role, kind="shape" if role.startswith("S") else "color",
+                    number=number(file_id), file_name=file_id,
+                    color_name=COLOR_NAMES.get(file_id, ""), job=ROLE_JOBS[role]))
 
-        # stimulus: one ID per kid's shape-color combination (Lucy01, Lucy02...),
-        # numbered in order of first appearance in the template.
-        combo_id = {}
-        for r in template:
-            key = (r["kid"], r["shape"], r["color"])
-            if key not in combo_id:
-                combo_id[key] = f"{r['kid']}{sum(k[0] == r['kid'] for k in combo_id) + 1:02d}"
+            # stimulus: one ID per kid's shape-color combination (Lucy01, Lucy02...),
+            # numbered in order of first appearance in the template.
+            combo_id = {}
+            for r in template:
+                key = (r["kid"], r["shape"], r["color"])
+                if key not in combo_id:
+                    combo_id[key] = f"{r['kid']}{sum(k[0] == r['kid'] for k in combo_id) + 1:02d}"
 
-        for r in template:
-            training_out.append(dict(
-                condition=condition, design=design, id=r["id"],
-                stimulus=combo_id[(r["kid"], r["shape"], r["color"])],
-                kid=r["kid"], kid_usual_color=r["kid_usual_color"],
-                shape_role=r["shape"], shape=shape_num(r["shape"]),
-                color_role=r["color"], color=color_num(r["color"]),
-                shape_name=f"{shape_of[r['shape']]}_{color_of[r['color']]}",
-                token=r["token"], shape_description=r["shape_role"],
-            ))
+            for r in template:
+                training_out.append(dict(
+                    condition=condition, design=design, color_version=version, id=r["id"],
+                    stimulus=combo_id[(r["kid"], r["shape"], r["color"])],
+                    kid=r["kid"], kid_usual_color=r["kid_usual_color"],
+                    shape_role=r["shape"], shape=shape_num(r["shape"]),
+                    color_role=r["color"], color=color_num(r["color"]),
+                    shape_name=f"{shape_of[r['shape']]}_{color_of[r['color']]}",
+                    token=r["token"], shape_description=r["shape_role"],
+                ))
 
-        tests = make_test_trials(template)
-        for t in tests:
-            t.update(response_type="color", figure_color="", correct_answer="")
-            if t["test_type"] == "memory_probe":
-                t["prompt"] = f"{t['kid']} drew this shape earlier."
-                t["question"] = f"What color did {t['kid']} use for this shape?"
-                t["correct_answer"] = t["ans_shape_based"].split(" ")[0]
-        # Drop the advisor's cross-category trial for Ana (Ana + S1): only
-        # Lucy's and Sam's cross-category trials are meaningful. IDs keep the
-        # advisor's numbering (so T10 is skipped); new trials start at T14.
-        next_id = len(tests) + 1
-        ana = list(dict.fromkeys(r["kid"] for r in template))[-1]
-        tests = [t for t in tests if not (t["test_type"] == "cross_category_conflict" and t["kid"] == ana)]
-        extra = extra_prediction_trials(template, next_id)
-        tests += extra + memory_trials(template, next_id + len(extra))
+            tests = make_test_trials(template)
+            for t in tests:
+                t.update(response_type="color", figure_color="", correct_answer="")
+                if t["test_type"] == "memory_probe":
+                    t["prompt"] = f"{t['kid']} drew this shape earlier."
+                    t["question"] = f"What color did {t['kid']} use for this shape?"
+                    t["correct_answer"] = t["ans_shape_based"].split(" ")[0]
+            # Drop the advisor's cross-category trial for Ana (Ana + S1): only
+            # Lucy's and Sam's cross-category trials are meaningful. IDs keep the
+            # advisor's numbering (so T10 is skipped); new trials start at T14.
+            next_id = len(tests) + 1
+            ana = list(dict.fromkeys(r["kid"] for r in template))[-1]
+            tests = [t for t in tests if not (t["test_type"] == "cross_category_conflict" and t["kid"] == ana)]
+            extra = extra_prediction_trials(template, next_id)
+            tests += extra + memory_trials(template, next_id + len(extra))
 
-        for t in tests:
-            # What's on screen: a training drawing (who_drew, so it has a
-            # color and its combo ID), an uncolored outline (O13), or no
-            # shape at all (prompt_only).
-            shape, color = t["shape"], t["figure_color"]
-            if color:
-                stimulus = combo_id[(t["correct_answer"], shape, color)]
-                shape_name = f"{shape_of[shape]}_{color_of[color]}"
-            elif shape in shape_of:
-                stimulus, shape_name = f"O{shape_num(shape)}", shape_of[shape]
-            else:
-                stimulus, shape_name = "prompt_only", ""
-            row = dict(condition=condition, design=design, id=t["id"], stimulus=stimulus,
-                       **{k: v for k, v in t.items() if k not in ("id", "shape", "figure_color")},
-                       shape_role=shape, shape=shape_num(shape),
-                       color_role=color, color=color_num(color), shape_name=shape_name)
-            i = 1
-            while f"opt{i}" in t:
-                code = t[f"opt{i}"]
-                row[f"strategy_opt{i}"] = option_strategy(t, code, template)
-                row[f"key_opt{i}"] = STRATEGY_TAG.sub("", row[f"key_opt{i}"])
-                i += 1
-            row["trial_group"] = trial_group(row)
-            row["diagnostic_for"] = DIAGNOSTIC_FOR.get(row["trial_group"], row["diagnostic_for"])
-            test_out.append(row)
+            for t in tests:
+                # What's on screen: a training drawing (who_drew, so it has a
+                # color and its combo ID), an uncolored outline (O13), or no
+                # shape at all (prompt_only).
+                shape, color = t["shape"], t["figure_color"]
+                if color:
+                    stimulus = combo_id[(t["correct_answer"], shape, color)]
+                    shape_name = f"{shape_of[shape]}_{color_of[color]}"
+                elif shape in shape_of:
+                    stimulus, shape_name = f"O{shape_num(shape)}", shape_of[shape]
+                else:
+                    stimulus, shape_name = "prompt_only", ""
+                row = dict(condition=condition, design=design, color_version=version, id=t["id"], stimulus=stimulus,
+                           **{k: v for k, v in t.items() if k not in ("id", "shape", "figure_color")},
+                           shape_role=shape, shape=shape_num(shape),
+                           color_role=color, color=color_num(color), shape_name=shape_name)
+                i = 1
+                while f"opt{i}" in t:
+                    code = t[f"opt{i}"]
+                    row[f"strategy_opt{i}"] = option_strategy(t, code, template)
+                    row[f"key_opt{i}"] = STRATEGY_TAG.sub("", row[f"key_opt{i}"])
+                    i += 1
+                row["trial_group"] = trial_group(row)
+                row["diagnostic_for"] = DIAGNOSTIC_FOR.get(row["trial_group"], row["diagnostic_for"])
+                test_out.append(row)
 
     write_csv(ROOT / "training_trials.csv", training_out)
     write_csv(ROOT / "test_trials.csv", test_out)
     write_csv(ROOT / "shape_color_roles.csv", roles_out)
     print(f"wrote {len(training_out)} training rows and {len(test_out)} test rows "
-          f"for {len({r['design'] for r in training_out})} conditions")
+          f"for {len({r['design'] for r in training_out})} conditions x {COLOR_VERSIONS} color versions")
 
 
 if __name__ == "__main__":

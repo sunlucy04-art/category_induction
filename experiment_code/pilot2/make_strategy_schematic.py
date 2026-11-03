@@ -68,10 +68,12 @@ def mirrored(codes):
 def main():
     # shape / color below are the role codes (S1, C5), which the page is written in
     def with_roles(rows):
-        return [dict(r, shape=r["shape_role"], color=r["color_role"]) for r in rows if r["condition"] == CONDITION]
+        return [dict(r, shape=r["shape_role"], color=r["color_role"]) for r in rows
+                if r["condition"] == CONDITION and r["color_version"] == "1"]
     training = with_roles(read_csv("training_trials.csv"))
     tests = with_roles(read_csv("test_trials.csv"))
-    roles = {r["role"]: r["file_name"] for r in read_csv("shape_color_roles.csv") if r["condition"] == CONDITION}
+    roles = {r["role"]: r["file_name"] for r in read_csv("shape_color_roles.csv")
+             if r["condition"] == CONDITION and r["color_version"] == "1"}
     image_dir = ROOT / "images" / CONDITION
     hexes = {c: swatch_hex(image_dir / "colors" / f"{roles[c]}.png") for c in roles if c.startswith("C")}
     shapes = {s: read_svg_path(image_dir / "shape_outlines" / f"{roles[s]}.svg") for s in roles if s.startswith("S")}
@@ -134,7 +136,25 @@ def main():
             rows += sorted(matches, key=lambda t: t["shape"])
         body += f'<section><h2>{escape(title)}</h2><p class="note">{escape(note)}</p>{"".join(trial_row(t) for t in rows)}</section>'
 
-    OUT.write_text(TEMPLATE.replace("{structure}", structure).replace("{legend}", legend).replace("{body}", body))
+    # Color version -> color role mapping (the page above shows version 1).
+    version_rows = [r for r in read_csv("shape_color_roles.csv") if r["condition"] == CONDITION and r["kind"] == "color"]
+    versions = sorted({r["color_version"] for r in version_rows}, key=int)
+    head = "".join(f"<th>Version {v}</th>" for v in versions)
+    body_rows = ""
+    for role in sorted({r["role"] for r in version_rows}):
+        mine = {r["color_version"]: r for r in version_rows if r["role"] == role}
+        cells = "".join(
+            f'<td><span class="vsw" style="background:{swatch_hex(image_dir / "colors" / (mine[v]["file_name"] + ".png"))}"></span>'
+            f'{escape(mine[v]["color_name"])} <span class="vnum">({mine[v]["number"]})</span></td>' for v in versions)
+        body_rows += f'<tr><th>{role}<div class="vjob">{escape(mine[versions[0]]["job"])}</div></th>{cells}</tr>'
+    version_table = (f'<section><h2>Color versions</h2><p class="note">Each participant gets one of {len(versions)} color versions, '
+                     f'chosen at the setup screen and saved as <code>color_version</code>. A version changes only which real color '
+                     f'plays each color role (file number in brackets); across the versions every color plays every role once. '
+                     f'Shapes, trials and strategies are the same in every version.</p>'
+                     f'<div class="vwrap"><table class="vtable"><thead><tr><th>Role</th>{head}</tr></thead><tbody>{body_rows}</tbody></table></div></section>')
+
+    OUT.write_text(TEMPLATE.replace("{structure}", structure).replace("{legend}", legend)
+                   .replace("{body}", body).replace("{versions}", version_table))
     print(f"wrote {OUT.name}")
 
 
@@ -185,6 +205,13 @@ section,.card{background:var(--panel);border:1px solid var(--line);border-radius
 .sw{height:44px;border-radius:8px;border:1px solid var(--line)}
 .code{font-size:13px;font-weight:700;margin:4px 0 2px}
 .why{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.35}
+.vwrap{overflow-x:auto}
+.vtable{border-collapse:collapse;width:100%;font-size:14px}
+.vtable th,.vtable td{border-top:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:middle;white-space:nowrap}
+.vtable thead th{border-top:none;color:var(--muted);font-weight:700}
+.vjob{font-weight:400;font-size:12px;color:var(--muted);white-space:normal;max-width:220px}
+.vsw{display:inline-block;width:18px;height:18px;border-radius:4px;border:1px solid var(--line);vertical-align:middle;margin-right:6px}
+.vnum{color:var(--muted);font-size:12px}
 @media (max-width:760px){
   .trial{grid-template-columns:1fr}
   .opts{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -194,10 +221,11 @@ section,.card{background:var(--panel);border:1px solid var(--line);border-radius
 <body>
 <div class="wrap">
 <h1>Trial types and strategies</h1>
-<p class="sub">Every prediction trial and color memory question in pilot 2 (high nameability), grouped by the kid's category structure. Under each answer option: its color code, the strategy it maps to (the saved <code>strategy</code> column), and the answer key's specific reason. An option with two pills fits both strategies (saved joined with "-").</p>
+<p class="sub">Every prediction trial and color memory question in pilot 2 (high nameability), grouped by the kid's category structure. Colors are color version 1 of 5; the versions only change which real color plays each role, so the strategies are the same in every version. Under each answer option: its color code, the strategy it maps to (the saved <code>strategy</code> column), and the answer key's specific reason. An option with two pills fits both strategies (saved joined with "-").</p>
 <div class="card"><h2>What each kid drew</h2><div class="kids">{structure}</div></div>
 <div class="card"><h2>Strategy codes</h2><div class="legend">{legend}</div></div>
 {body}
+{versions}
 <p class="sub" style="margin-top:20px">Not shown: "Who drew this?" and "Which shape did the kid draw most often?", whose options are kids and shapes (strategies: correct, other_drawer_of_shape / never_drew_shape, named_kid_other_shape / never_drawn). Built by make_strategy_schematic.py from the experiment's trial lists. For the full walkthrough of the session (training, attention checks and every test trial), see kids_drawings_pilot2_demo.html.</p>
 </div>
 </body>

@@ -27,15 +27,17 @@ Every participant learns exactly the demo's three categories (Lucy, Sam, Ana) wi
 | S3 | shape 10 | every kid |
 | S4 | shape 7 | Ana only |
 
-**Colors** are also fixed for everyone (`COLOR_ROLES` in `generate_design.py`), matched to the advisor's demo colors as closely as our sets allow. There is no counterbalancing of which shape or color plays which role (yet).
+**Colors** are counterbalanced across **5 color versions**, so no result hinges on one kid having especially memorable colors (e.g. Sam's being blue and purple). Each version shuffles which real color plays each color role; across the versions, every color plays every role exactly once (a Latin square: version v shifts `COLOR_ROLES` in `generate_design.py` v − 1 places along C1–C5). The researcher picks the version at the setup screen (or `?colorVersion=1`–`5`) and cycles through them so counts stay balanced. Shapes are the same in every version.
 
-| Role | Color |
-|---|---|
-| C1 Lucy's usual | red (`high_color1`) |
-| C2 Sam's usual | blue (`high_color4`) |
-| C3 Ana's usual | yellow (`high_color3`) |
-| C4 every S4 (Ana's shape) | orange (`high_color2`) |
-| C5 2 of 3 of Lucy's S1s and Sam's S2s | purple (`high_color5`) |
+| Role | v1 | v2 | v3 | v4 | v5 |
+|---|---|---|---|---|---|
+| C1 Lucy's usual | red | blue | yellow | orange | purple |
+| C2 Sam's usual | blue | yellow | orange | purple | red |
+| C3 Ana's usual | yellow | orange | purple | red | blue |
+| C4 every S4 (Ana's shape) | orange | purple | red | blue | yellow |
+| C5 2 of 3 of Lucy's S1s and Sam's S2s | purple | red | blue | yellow | orange |
+
+File numbers: red `high_color1`, blue `high_color4`, yellow `high_color3`, orange `high_color2`, purple `high_color5`. Everything else about the design (trials, answer keys, strategy codes) is identical across versions; the trial lists hold every trial once per version (`color_version`).
 
 **Instructions** tell participants their job is to learn which drawings belong to which kid, and outline the three parts: a learning phase (watch the drawings, with occasional quick checks on the last drawing), a question phase, and a questionnaire phase, after which the study is complete. One page shows an example learning-phase drawing, using a kid (Max), shape (4) and color that never appear in the real trials; `prepare_nameability_stimuli.py` makes it in `images/<condition>/instruction_examples/`, matched to the participant's condition. There is no practice and no example of the test questions. The real kids' names first appear on the start screen. A self-paced "Take a break!" page follows each training block except the last, and "Great job!" pages introduce the question phase and the questionnaire phase.
 
@@ -47,7 +49,7 @@ The FIT and IRQ questionnaires, per-section DataPipe saving, and the Qualtrics r
 
 - `index.html` / `experiment.js`: the experiment. The number of training blocks, timing, one-back proportion and the DataPipe ID are constants at the top of `experiment.js`.
 - `training_trials.csv`, `test_trials.csv`: each condition's training drawings and test trials. Stimuli are given as role codes (`shape_role` / `color_role`), file numbers (`shape` / `color`) and the file name shown (`shape_name`); the experiment builds the image paths from these. These are generated, so don't hand-edit them.
-- `shape_color_roles.csv`: which shape/color file fills each role (S1–S4, C1–C5) per condition, with the file number, color name and the role's job in the design (for analysis; not read by the experiment).
+- `shape_color_roles.csv`: which shape/color file fills each role (S1–S4, C1–C5) per condition and color version, with the file number, color name and the role's job in the design (for analysis; not read by the experiment).
 - `make_strategy_schematic.py` → `strategy_schematic.html`: a one-page map of every prediction and color-memory trial, grouped by category structure, showing each answer option's strategy code.
 - `make_overview.py` / `overview_template.html` → `kids_drawings_pilot2_demo.html`: a single-file walkthrough of the design in the style of the advisor's demo (legend, training stepper, attention checks, every test trial with its answer key, and trial counts by type), built from the files above. Open it in a browser or send it as an attachment. Re-run `python3 make_overview.py` after design changes.
 - `generate_design.py`: builds the three CSVs above from the advisor's template. It runs `advisor_demo/make_test_trials.py` (unchanged) for the 13 core test trials and adds the memory trials itself.
@@ -63,7 +65,7 @@ The FIT and IRQ questionnaires, per-section DataPipe saving, and the Qualtrics r
 
 `<subjCode>_induction.csv` has one row per training drawing (`trial_type = training`), attention check (`attention_check`) and test trial (`test`). It records what happened; everything fixed by the design (the prompt, every option with its answer key and strategy code, image files) is in `test_trials.csv` / `training_trials.csv`, joined by `trial_id`. Columns:
 
-- **Session**: `subjCode`, `random_seed`, `questionnaire_order` (`fit_first` / `irq_first`)
+- **Session**: `subjCode`, `random_seed`, `color_version` (1–5), `questionnaire_order` (`fit_first` / `irq_first`)
 - **Order**: `trial_type`; `training_block` (blank for test trials); `trial_num` (order within the training block or test phase; an attention check shares the number of the drawing it asks about); `trial_index` (order across the whole file); `time_elapsed` (ms since the session started, so break lengths can be worked out)
 - **Trial**: `stimulus` (what was on screen: a kid's shape-color combination, `Lucy01`–`Lucy03`, `Sam01`–`Sam03`, `Ana01`–`Ana02`, for training drawings, attention checks (the drawing asked about) and "Who drew this?" trials; `O` plus the shape number for an uncolored outline, e.g. `O13`; `prompt_only` when no shape is shown); `trial_id` (test trials only: T01–T33, for joining to `test_trials.csv`); `test_type`; `trial_group` (functionally equivalent test trials, see `trial_group` in `generate_design.py`); `attention_check_type` (kid/color/shape); `kid`; `shape_role` (S1–S4) and `shape` (its file number, e.g. 13); `color_role` (C1–C5) and `color` (its file number, e.g. 5); `shape_name` (the file shown: `high_shape13_high_color5` for a drawing, `high_shape13` for an outline). Each is blank when it wasn't shown: no kid named, no shape, or an uncolored outline. See `shape_color_roles.csv` for what each role does. `rotation` of the drawing shown
 - **Response**: `option_order` (option codes, left to right on screen); `response_role` (what was chosen, as a role: C1–C5, S1–S4 or a kid's name) and `response` (the same choice as the chosen color's or shape's file number, e.g. 5, or the kid's name); `strategy` (what the choice reflects, as a kid-agnostic code identical across functionally equivalent trials: `most_frequent_color_kid_match`, `conjunction_kid_match`, `conjunction_other_kid`, `most_frequent_color_other_kid`, `named_kid_other_color`, or else `most_frequent_unrelated_kid` / `never_used`; memory trials use `correct` plus error codes. A choice that fits more than one strategy lists them all, joined with `-`, e.g. `most_frequent_color_kid_match-conjunction_kid_match`. Blank on attention checks; see `option_strategy` in `generate_design.py`); `correct_answer` and `is_correct` (1/0; attention checks and memory trials only); `rt` (blank for the timed training drawings)

@@ -37,6 +37,7 @@ SETTINGS = {
     "demoDrawings": "DEMO_TRAINING_COUNT",
     "demoChecks": "DEMO_CHECKS",
     "demoTests": "DEMO_TEST_COUNT",
+    "colorVersions": "COLOR_VERSIONS",
 }
 
 
@@ -75,7 +76,12 @@ def main():
 
     # The structure and test trials are the same in every condition (in S/C
     # codes), so take them from the first one.
+    # The color versions only shuffle which real color plays each role, so the
+    # page shows version 1.
     first = training[0]["design"]
+    training = [r for r in training if r["color_version"] == "1"]
+    tests = [r for r in tests if r["color_version"] == "1"]
+    roles = [r for r in roles if r["color_version"] == "1"]
     data = {
         "settings": read_settings(),
         "training": [dict(kid=r["kid"], shape=r["shape_role"], color=r["color_role"], token=int(r["token"][1:])) for r in training if r["design"] == first],

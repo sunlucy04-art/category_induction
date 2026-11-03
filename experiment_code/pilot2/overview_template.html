@@ -264,7 +264,7 @@ function optionHTML(type, code, pressed, key, pos, strategy) {
 
 function renderIntro() {
   const nPred = DATA.tests.filter(t => PREDICTION_TYPES.includes(t.test_type)).length;
-  $("headSub").textContent = `A walkthrough of the pilot 2 session: three kids, four shapes, five colors. Participants see the ${DATA.training.length} training drawings ${S.trainingBlocks} times with attention checks, then ${DATA.tests.length} test trials (${nPred} predictions about new drawings and ${DATA.tests.length - nPred} memory questions). Turn on the answer key to see which strategy each choice reflects.`;
+  $("headSub").textContent = `A walkthrough of the pilot 2 session: three kids, four shapes, five colors (shown in color version 1 of ${S.colorVersions}; each version shuffles which real color plays each color role). Participants see the ${DATA.training.length} training drawings ${S.trainingBlocks} times with attention checks, then ${DATA.tests.length} test trials (${nPred} predictions about new drawings and ${DATA.tests.length - nPred} memory questions). Turn on the answer key to see which strategy each choice reflects.`;
   const drawMin = Math.round(S.trainingBlocks * DATA.training.length * (S.drawingMs + S.gapMs) / 6000) / 10;
   $("steps").innerHTML = [
     "Setup: subject code, random seed, questionnaire order.",
