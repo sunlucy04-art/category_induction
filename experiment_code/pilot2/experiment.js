@@ -857,9 +857,9 @@ function buildInstructions(kids, exampleDrawing) {
       `
         <div class="instructions-block">
           <h3>The study has three main parts:</h3>
-          <p><b>1. Learning phase.</b> You will see the kids' drawings one at a time, each with the name of the kid who drew it. <strong>Pay close attention!</strong> You will have to answer questions later. There will be a few short breaks along the way to rest your eyes.</p>
-          <p><b>2. Question phase.</b> You will answer some questions about the drawings.</p>
-          <p><b>3. Questionnaire phase.</b> You will fill out a few short questionnaires and when you finish the final questionnaire, the study is complete.</p>
+          <p><b>1. Learning phase.</b> You will view a series of differently colored shapes along with a name. These represent drawings made by different children. Your goal is to learn which drawings are drawn by which child. <strong>Pay close attention.</strong> Every once in a while you will be asked about the shape, color, or name that goes with the drawing you just saw. There will be several short breaks along the way.</p>
+          <p><b>2. Question phase.</b> You will answer additional questions about the drawings that help us understand what you've learned in the learning phase.</p>
+          <p><b>3. Questionnaire phase.</b> You will fill out a few short questionnaires. When you finish these, the study is complete.</p>
           <p>Click "Next" to continue.</p>
         </div>
       `,
