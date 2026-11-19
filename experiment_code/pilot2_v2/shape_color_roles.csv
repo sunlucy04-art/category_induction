@@ -1,0 +1,46 @@
+condition,color_version,role,kind,number,file_name,color_name,job
+low_shape_high_color,1,S1,shape,13,low_shape13,,"Lucy's own shape (only Lucy likes it, mostly in C5)"
+low_shape_high_color,1,S2,shape,1,low_shape1,,"Sam's own shape (only Sam likes it, mostly in C5)"
+low_shape_high_color,1,S3,shape,10,low_shape10,,"liked by every kid, each in their own most frequent color"
+low_shape_high_color,1,S4,shape,7,low_shape7,,"Ana's own shape (only Ana likes it, always in C4)"
+low_shape_high_color,1,C1,color,1,high_color1,red,Lucy's most frequent color
+low_shape_high_color,1,C2,color,4,high_color4,blue,Sam's most frequent color
+low_shape_high_color,1,C3,color,3,high_color3,yellow,Ana's most frequent color
+low_shape_high_color,1,C4,color,2,high_color2,orange,the color of every S4
+low_shape_high_color,1,C5,color,5,high_color5,purple,the less frequent color on Lucy's S1s and Sam's S2s
+low_shape_high_color,2,S1,shape,13,low_shape13,,"Lucy's own shape (only Lucy likes it, mostly in C5)"
+low_shape_high_color,2,S2,shape,1,low_shape1,,"Sam's own shape (only Sam likes it, mostly in C5)"
+low_shape_high_color,2,S3,shape,10,low_shape10,,"liked by every kid, each in their own most frequent color"
+low_shape_high_color,2,S4,shape,7,low_shape7,,"Ana's own shape (only Ana likes it, always in C4)"
+low_shape_high_color,2,C1,color,4,high_color4,blue,Lucy's most frequent color
+low_shape_high_color,2,C2,color,3,high_color3,yellow,Sam's most frequent color
+low_shape_high_color,2,C3,color,2,high_color2,orange,Ana's most frequent color
+low_shape_high_color,2,C4,color,5,high_color5,purple,the color of every S4
+low_shape_high_color,2,C5,color,1,high_color1,red,the less frequent color on Lucy's S1s and Sam's S2s
+low_shape_high_color,3,S1,shape,13,low_shape13,,"Lucy's own shape (only Lucy likes it, mostly in C5)"
+low_shape_high_color,3,S2,shape,1,low_shape1,,"Sam's own shape (only Sam likes it, mostly in C5)"
+low_shape_high_color,3,S3,shape,10,low_shape10,,"liked by every kid, each in their own most frequent color"
+low_shape_high_color,3,S4,shape,7,low_shape7,,"Ana's own shape (only Ana likes it, always in C4)"
+low_shape_high_color,3,C1,color,3,high_color3,yellow,Lucy's most frequent color
+low_shape_high_color,3,C2,color,2,high_color2,orange,Sam's most frequent color
+low_shape_high_color,3,C3,color,5,high_color5,purple,Ana's most frequent color
+low_shape_high_color,3,C4,color,1,high_color1,red,the color of every S4
+low_shape_high_color,3,C5,color,4,high_color4,blue,the less frequent color on Lucy's S1s and Sam's S2s
+low_shape_high_color,4,S1,shape,13,low_shape13,,"Lucy's own shape (only Lucy likes it, mostly in C5)"
+low_shape_high_color,4,S2,shape,1,low_shape1,,"Sam's own shape (only Sam likes it, mostly in C5)"
+low_shape_high_color,4,S3,shape,10,low_shape10,,"liked by every kid, each in their own most frequent color"
+low_shape_high_color,4,S4,shape,7,low_shape7,,"Ana's own shape (only Ana likes it, always in C4)"
+low_shape_high_color,4,C1,color,2,high_color2,orange,Lucy's most frequent color
+low_shape_high_color,4,C2,color,5,high_color5,purple,Sam's most frequent color
+low_shape_high_color,4,C3,color,1,high_color1,red,Ana's most frequent color
+low_shape_high_color,4,C4,color,4,high_color4,blue,the color of every S4
+low_shape_high_color,4,C5,color,3,high_color3,yellow,the less frequent color on Lucy's S1s and Sam's S2s
+low_shape_high_color,5,S1,shape,13,low_shape13,,"Lucy's own shape (only Lucy likes it, mostly in C5)"
+low_shape_high_color,5,S2,shape,1,low_shape1,,"Sam's own shape (only Sam likes it, mostly in C5)"
+low_shape_high_color,5,S3,shape,10,low_shape10,,"liked by every kid, each in their own most frequent color"
+low_shape_high_color,5,S4,shape,7,low_shape7,,"Ana's own shape (only Ana likes it, always in C4)"
+low_shape_high_color,5,C1,color,5,high_color5,purple,Lucy's most frequent color
+low_shape_high_color,5,C2,color,1,high_color1,red,Sam's most frequent color
+low_shape_high_color,5,C3,color,4,high_color4,blue,Ana's most frequent color
+low_shape_high_color,5,C4,color,3,high_color3,yellow,the color of every S4
+low_shape_high_color,5,C5,color,2,high_color2,orange,the less frequent color on Lucy's S1s and Sam's S2s
