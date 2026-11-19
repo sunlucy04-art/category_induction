@@ -16,6 +16,7 @@ memory_trials).
 Outputs (read by experiment.js):
   training_trials.csv  the 24 training drawings, per condition
   test_trials.csv      the test trials, per condition
+  attention_checks.csv the fixed set of attention checks (see attention_checks)
   shape_color_roles.csv  which shape/color file fills each S/C role per
                          condition, and the role's job in the design
                          (for analysis; not read by the experiment)
@@ -31,6 +32,7 @@ Re-run whenever the template, the stimuli, or the settings below change.
 from collections import Counter
 from pathlib import Path
 import csv
+import random
 import re
 import subprocess
 import sys
@@ -479,6 +481,49 @@ def trial_group(row):
     return test_type
 
 
+# Attention checks: a fixed set, the same for every participant, so each check
+# can be compared across people. Every training drawing gets exactly one
+# check (24 in all), in a fixed block and of a fixed type; only where it falls
+# within its block differs between participants (the drawings are shuffled),
+# and it always comes right after its drawing.
+TRAINING_BLOCKS = 4
+CHECK_TYPES = ["kid", "color", "shape"]
+CHECK_SEED = 2026  # the list is drawn once with this seed, so it never changes
+
+
+def attention_checks(rows):
+    """One check per training drawing, balanced so every block has 6 checks,
+    2 of each type and 2 per kid (a kid's two checks in a block are different
+    types), and each kid gets each type 2-3 times over the session."""
+    kids = list(dict.fromkeys(r["kid"] for r in rows))
+    rng = random.Random(CHECK_SEED)
+    while True:
+        block_of = {}
+        for kid in kids:
+            ids = [r["id"] for r in rows if r["kid"] == kid]
+            rng.shuffle(ids)
+            per_block = len(ids) // TRAINING_BLOCKS
+            for i, drawing in enumerate(ids):
+                block_of[drawing] = i // per_block + 1
+        type_of = {}
+        for block in range(1, TRAINING_BLOCKS + 1):
+            ids = [r["id"] for r in rows if block_of[r["id"]] == block]
+            types = CHECK_TYPES * (len(ids) // len(CHECK_TYPES))
+            rng.shuffle(types)
+            type_of.update(zip(ids, types))
+        kid_of = {r["id"]: r["kid"] for r in rows}
+        same_type_in_block = any(
+            len({type_of[d] for d in block_of if block_of[d] == b and kid_of[d] == kid}) < 2
+            for b in range(1, TRAINING_BLOCKS + 1) for kid in kids)
+        counts = Counter((kid_of[d], type_of[d]) for d in type_of)
+        if not same_type_in_block and all(2 <= counts[(k, t)] <= 3 for k in kids for t in CHECK_TYPES):
+            break
+    order = sorted(rows, key=lambda r: (block_of[r["id"]], r["id"]))
+    return [dict(check_id=f"AC{i:02d}", training_block=block_of[r["id"]], id=r["id"],
+                 check_type=type_of[r["id"]], kid=r["kid"], shape_role=r["shape"], color_role=r["color"])
+            for i, r in enumerate(order, 1)]
+
+
 def main():
     template = read_csv(TEMPLATE)
     assert set(SHAPE_ROLES) == {r["shape"] for r in template}, "SHAPE_ROLES must cover the template's shapes"
@@ -499,10 +544,11 @@ def main():
         for version in range(1, COLOR_VERSIONS + 1):
             color_of = color_version(base_colors, version)
             design = condition
-            # Stimuli are identified by their file numbers (shape 13, color 5);
-            # shape_name is the file name the experiment shows (the traced SVGs
-            # made by prepare_nameability_stimuli.py): the filled drawing
-            # (high_shape13_high_color5) or the outline alone (high_shape13).
+            # stimulus is the file name of what's on screen (the traced SVGs and
+            # swatches made by prepare_nameability_stimuli.py): a filled drawing
+            # (low_shape13_high_color5), an outline alone (low_shape13), a color
+            # swatch alone (high_color5), or blank when nothing is shown. shape
+            # and color are the file numbers (13, 5).
             number = lambda file_id: int(re.search(r"(\d+)$", file_id).group(1))
             shape_num = lambda code: number(shape_of[code]) if code in shape_of else ""
             color_num = lambda code: number(color_of[code]) if code in color_of else ""
@@ -513,22 +559,13 @@ def main():
                     number=number(file_id), file_name=file_id,
                     color_name=COLOR_NAMES.get(file_id, ""), job=ROLE_JOBS[role]))
 
-            # stimulus: one ID per kid's shape-color combination (Lucy01, Lucy02...),
-            # numbered in order of first appearance in the template.
-            combo_id = {}
-            for r in template:
-                key = (r["kid"], r["shape"], r["color"])
-                if key not in combo_id:
-                    combo_id[key] = f"{r['kid']}{sum(k[0] == r['kid'] for k in combo_id) + 1:02d}"
-
             for r in template:
                 training_out.append(dict(
                     condition=condition, design=design, color_version=version, id=r["id"],
-                    stimulus=combo_id[(r["kid"], r["shape"], r["color"])],
+                    stimulus=f"{shape_of[r['shape']]}_{color_of[r['color']]}",
                     kid=r["kid"], kid_usual_color=r["kid_usual_color"],
                     shape_role=r["shape"], shape=shape_num(r["shape"]),
                     color_role=r["color"], color=color_num(r["color"]),
-                    shape_name=f"{shape_of[r['shape']]}_{color_of[r['color']]}",
                     token=r["token"], shape_description=r["shape_role"],
                 ))
 
@@ -548,24 +585,21 @@ def main():
             tests += extra + memory_trials(template, next_id + len(extra))
 
             for t in tests:
-                # What's on screen: a training drawing (who_liked, so it has a
-                # color and its combo ID), an uncolored outline (O13), or no
-                # shape at all (prompt_only).
+                # What's on screen: a training drawing (who_liked), an uncolored
+                # outline, a color swatch alone (who_liked_color), or nothing.
                 shape, color = t["shape"], t["figure_color"]
-                if color and shape not in shape_of:
-                    # a color swatch on its own (who_liked_color)
-                    stimulus, shape_name = f"color{color_num(color)}", ""
-                elif color:
-                    stimulus = combo_id[(t["correct_answer"], shape, color)]
-                    shape_name = f"{shape_of[shape]}_{color_of[color]}"
+                if shape in shape_of and color:
+                    stimulus = f"{shape_of[shape]}_{color_of[color]}"
                 elif shape in shape_of:
-                    stimulus, shape_name = f"O{shape_num(shape)}", shape_of[shape]
+                    stimulus = shape_of[shape]
+                elif color:
+                    stimulus = color_of[color]
                 else:
-                    stimulus, shape_name = "prompt_only", ""
+                    stimulus = ""
                 row = dict(condition=condition, design=design, color_version=version, id=t["id"], stimulus=stimulus,
                            **{k: v for k, v in t.items() if k not in ("id", "shape", "figure_color")},
                            shape_role=shape, shape=shape_num(shape),
-                           color_role=color, color=color_num(color), shape_name=shape_name)
+                           color_role=color, color=color_num(color))
                 i = 1
                 while f"opt{i}" in t:
                     code = t[f"opt{i}"]
@@ -580,6 +614,7 @@ def main():
     write_csv(ROOT / "training_trials.csv", training_out)
     write_csv(ROOT / "test_trials.csv", test_out)
     write_csv(ROOT / "shape_color_roles.csv", roles_out)
+    write_csv(ROOT / "attention_checks.csv", attention_checks(template))
     print(f"wrote {len(training_out)} training rows and {len(test_out)} test rows "
           f"for {len({r['design'] for r in training_out})} conditions x {COLOR_VERSIONS} color versions")
 

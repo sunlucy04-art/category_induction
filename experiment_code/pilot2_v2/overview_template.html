@@ -338,7 +338,7 @@ function renderTrain() {
 }
 function renderCheck(it) {
   const split = [0, 1, 2].map(i => Math.floor((S.checksPerBlock + 2 - i) / 3)).join("/");
-  $("checkNote").textContent = `After ${S.checksPerBlock} randomly chosen drawings in each block, participants answer one question about the drawing they just saw. The three question types are split ${split} within a block${S.checksPerBlock % 3 ? ", rotating which type gets fewer" : ""}. Shown here for the drawing above.`;
+  $("checkNote").textContent = `After ${S.checksPerBlock} drawings in each block, participants answer one question about the drawing they just saw. The checks are a fixed list (attention_checks.csv), the same for every participant: every training drawing gets exactly one check, in a fixed block and of a fixed type, always right after that drawing; only its position within the block varies. The three question types are split ${split} within a block. Shown here for the drawing above.`;
   $("checkTabs").innerHTML = Object.entries(CHECKS).map(([c, [label]]) => `<button data-c="${c}" aria-pressed="${c === checkType}">${label}</button>`).join("");
   $("checkTabs").querySelectorAll("button").forEach(b => b.onclick = () => { checkType = b.dataset.c; checkPick = null; renderTrain(); });
   $("checkQ").textContent = CHECKS[checkType][1];

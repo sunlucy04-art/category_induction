@@ -41,6 +41,7 @@
 
 const TRAINING_CSV = "training_trials.csv";
 const TEST_CSV = "test_trials.csv";
+const CHECKS_CSV = "attention_checks.csv";
 
 // Pilot 2 v2's stimulus set: the less nameable shapes with the more nameable
 // colors (images/low_shape_high_color). Nameability isn't being manipulated:
@@ -63,10 +64,12 @@ const TRAINING_DRAWING_MS = 2500;
 const TRAINING_GAP_MS = 500;
 
 // One-back attention checks (who liked / what color / what shape was the
-// last drawing) per training block, each placed after a randomly chosen
-// drawing. 6 checks per 24 drawings: one check for every 4 drawings. The
-// three types are split as evenly as possible within a block (2/2/2).
-const ONE_BACK_CHECKS_PER_BLOCK = 6;
+// last drawing) come from a fixed list, attention_checks.csv (made by
+// generate_design.py), the same for every participant so each check can be
+// compared across people: every training drawing gets exactly one check, in
+// a fixed block and of a fixed type, and the check always comes right after
+// that drawing. Only where it falls within its block is random (the drawings
+// are shuffled). 6 checks per block, 2 of each type and 2 per kid.
 
 // Token number the advisor's demo gives every test-phase figure.
 const TEST_FIGURE_TOKEN = 20;
@@ -95,7 +98,7 @@ const QUALTRICS_URL = "https://uwmadison.co1.qualtrics.com/jfe/form/SV_cXTGxiv3C
 // trials), then DEMO_TEST_COUNT test trials that include at least one of
 // every test type. The questionnaires always run in full regardless.
 const DEMO_TRAINING_COUNT = 7;
-const DEMO_CHECKS = 3;
+const DEMO_CHECKS = 3; // block 1's checks, one of each type
 const DEMO_TEST_COUNT = 15;
 
 let participantId;
@@ -587,15 +590,15 @@ function getOptionNumbers(row) {
     .sort(function(a, b) { return a - b; });
 }
 
-// Image files, from the stimulus file numbers (shape 13, color 5) and
-// shape_name in the trial lists. Drawings are the traced SVGs: filled
+// Image files, from the file numbers (shape 13, color 5) and the stimulus
+// file name in the trial lists. Drawings are the traced SVGs: filled
 // (all_shapes/high_shape13_high_color5) or the outline alone
 // (shape_outlines/high_shape13).
 const IMAGE_DIR = `images/${CONDITION}`;
 function swatchImage(color) { return `${IMAGE_DIR}/colors/${COLOR_FILE_PREFIX}_color${color}.png`; }
 function outlineImage(shape) { return `${IMAGE_DIR}/shape_outlines/${SHAPE_FILE_PREFIX}_shape${shape}.svg`; }
 function drawingImage(row) {
-  return `${IMAGE_DIR}/${row.color ? "all_shapes" : "shape_outlines"}/${row.shape_name}.svg`;
+  return `${IMAGE_DIR}/${row.color ? "all_shapes" : "shape_outlines"}/${row.stimulus}.svg`;
 }
 
 // Role code (S1-S4, C1-C5) -> file number, from the training drawings,
@@ -734,7 +737,9 @@ const ONE_BACK_QUESTIONS = {
 const ONE_BACK_ANSWER = { kid: "kid", color: "color_role", shape: "shape_role" };
 
 // Attention check right after a training drawing, asking about that drawing.
-function buildOneBackTrial(prevRow, checkType, options, trainingBlock, trialNum) {
+// check: its row in attention_checks.csv (check_id, check_type).
+function buildOneBackTrial(prevRow, check, options, trainingBlock, trialNum) {
+  const checkType = check.check_type;
   return buildChoiceTrial(
     `
       <div class="page drawing-page">
@@ -749,23 +754,11 @@ function buildOneBackTrial(prevRow, checkType, options, trainingBlock, trialNum)
       subjCode: participantId,
       phase: "training",
       attention_check_type: checkType,
+      check_id: check.check_id,
       training_block: trainingBlock,
       trial_num: trialNum,
     })
   );
-}
-
-// Which drawings in a training block get a one-back check after them:
-// `count` randomly chosen drawings, with check types taken in turn from
-// typeOrder (so they're split as evenly as possible) and then shuffled.
-function oneBackSchedule(nDrawings, count, typeOrder) {
-  const checkTypes = jsPsych.randomization.shuffle(
-    Array.from({ length: count }, function(_, i) { return typeOrder[i % typeOrder.length]; })
-  );
-  const positions = jsPsych.randomization.sampleWithoutReplacement([...Array(nDrawings).keys()], count);
-  const schedule = {};
-  positions.forEach(function(position, i) { schedule[position] = checkTypes[i]; });
-  return schedule;
 }
 
 function buildTestTrial(row, numbers, trialNum) {
@@ -774,7 +767,7 @@ function buildTestTrial(row, numbers, trialNum) {
   // trials name the kid but show only a blank space where the drawing would
   // be; the shape and color-only questions show no drawing at all.
   let figure = "";
-  if (row.shape_name) {
+  if (row.shape) {
     figure = drawingHTML(drawingImage(row), jitter);
   } else if (row.color) {
     figure = `<img class="drawing swatch-figure" src="${swatchImage(row.color)}">`;
@@ -798,8 +791,8 @@ function buildTestTrial(row, numbers, trialNum) {
       subjCode: participantId,
       phase: "test",
       trial_num: trialNum,
-      rotation: row.shape_name ? jitter.rotation : "",
-      scale: row.shape_name ? jitter.scale : "",
+      rotation: row.shape ? jitter.rotation : "",
+      scale: row.shape ? jitter.scale : "",
     })
   );
 }
@@ -827,12 +820,12 @@ function buildInductionCleanCSV() {
       test_type: blank(t.test_type),
       trial_group: blank(t.trial_group),
       attention_check_type: blank(t.attention_check_type),
+      check_id: blank(t.check_id),
       kid: blank(t.kid),
       shape_role: blank(t.shape_role),
       shape: blank(t.shape),
       color_role: blank(t.color_role),
       color: blank(t.color),
-      shape_name: blank(t.shape_name),
       rotation: blank(t.rotation),
       option_order: blank(t.option_order),
       // what was chosen, as its role code (or the kid's name) and as the
@@ -922,12 +915,12 @@ function buildInstructions(kids, exampleDrawing) {
 }
 
 // trainingBlocks: one shuffled array of training rows per training block.
-// checksPerBlock: one-back checks in each training block.
+// checks: the attention_checks.csv rows (the fixed set of checks).
 // test: the shuffled test rows.
 // design: all 24 training drawings (in demo mode the blocks show only some,
 //   but the answer options and role numbers come from the full design).
 // exampleDrawing: this condition's instructions example drawing.
-function buildInductionTimeline(trainingBlocks, checksPerBlock, test, design, exampleDrawing) {
+function buildInductionTimeline(trainingBlocks, checks, test, design, exampleDrawing) {
   const timeline = [];
   const allTraining = trainingBlocks.flat();
   const options = designOptions(design);
@@ -938,7 +931,7 @@ function buildInductionTimeline(trainingBlocks, checksPerBlock, test, design, ex
   allTraining.forEach(function(row) { images.push(drawingImage(row)); });
   Object.values(options).flat().forEach(function(option) { if (option.image) images.push(option.image); });
   test.forEach(function(row) {
-    if (row.shape_name) images.push(drawingImage(row));
+    if (row.shape) images.push(drawingImage(row));
     testOptions(row, numbers).forEach(function(option) { if (option.image) images.push(option.image); });
   });
   timeline.push({
@@ -949,18 +942,16 @@ function buildInductionTimeline(trainingBlocks, checksPerBlock, test, design, ex
   timeline.push(...buildInstructions(kids, exampleDrawing));
 
   // trial_num is the presentation order within each training block, or
-  // within the test phase; id stays the trial list's ID for that row.
-  // Rotating the type order each block changes which type gets one fewer
-  // check when checksPerBlock isn't a multiple of 3.
-  const typeOrder = jsPsych.randomization.shuffle(Object.keys(ONE_BACK_QUESTIONS));
+  // within the test phase; id stays the trial list's ID for that row. Each
+  // drawing's check (if it has one in this block) follows it directly.
+  const checkFor = {};
+  checks.forEach(function(check) { checkFor[`${check.training_block}|${check.id}`] = check; });
   trainingBlocks.forEach(function(block, b) {
-    const shift = b % typeOrder.length;
-    const blockTypeOrder = typeOrder.slice(shift).concat(typeOrder.slice(0, shift));
-    const schedule = oneBackSchedule(block.length, checksPerBlock, blockTypeOrder);
     block.forEach(function(row, i) {
       timeline.push(buildTrainingTrial(row, b + 1, i + 1));
-      if (schedule[i]) {
-        timeline.push(buildOneBackTrial(row, schedule[i], options, b + 1, i + 1));
+      const check = checkFor[`${b + 1}|${row.id}`];
+      if (check) {
+        timeline.push(buildOneBackTrial(row, check, options, b + 1, i + 1));
       }
     });
     if (b < trainingBlocks.length - 1) {
@@ -1007,9 +998,9 @@ function buildInductionTimeline(trainingBlocks, checksPerBlock, test, design, ex
 // Category-description trials: the last part of the category task, after
 // all the test trials. How did people remember which drawings each kid
 // liked: a description, the kids' names, or both? Then, if a description (or
-// both), one page showing each kid's distinct drawings as a group, without
-// the kid's name and in random order, each with "What description did you
-// use for this group of drawings?". Saved as
+// both), one page per kid, in random order and without the kid's name,
+// showing every distinct drawing that kid liked (each shape in each color)
+// with "What description did you use for this group of drawings?". Saved as
 // "<subjCode>_category_description.csv", one row.
 const CATEGORY_DESCRIPTION_OPTIONS = {
   "A description of the drawings": "description",
@@ -1035,46 +1026,50 @@ function buildCategoryDescriptionTimeline(design) {
     data: { categorydescriptionsave: true, screen: "category_description_choice" },
   });
 
-  // conditional_function only takes effect on a timeline node.
-  timeline.push({
-    timeline: [{
-      type: jsPsychSurveyText,
-      questions: groupOrder.map(function(kid) {
-        const drawings = [...new Map(design.filter(function(row) { return row.kid === kid; })
-          .map(function(row) { return [row.stimulus, row]; })).values()];
-        return {
-          prompt: `
+  // conditional_function only takes effect on a timeline node, so each page
+  // is wrapped in one.
+  groupOrder.forEach(function(kid) {
+    const drawings = [...new Map(design.filter(function(row) { return row.kid === kid; })
+      .map(function(row) { return [row.stimulus, row]; })).values()];
+    timeline.push({
+      timeline: [{
+        type: jsPsychSurveyText,
+        preamble: `
+          <div class="instructions-block">
             <div class="category-description-drawings">${drawings.map(function(row) {
               return `<img class="category-description-drawing" src="${drawingImage(row)}">`;
             }).join("")}</div>
-            <p>What description did you use for this group of drawings?</p>
-          `,
+          </div>
+        `,
+        questions: [{
+          prompt: "What description did you use for this group of drawings?",
           name: `description_${kid}`,
-          rows: 2,
+          rows: 3,
           required: true,
-        };
-      }),
-      data: { categorydescriptionsave: true, screen: "category_description_texts" },
-    }],
-    conditional_function: function() {
-      const choice = jsPsych.data.get().filter({ screen: "category_description_choice" }).last(1).trials[0];
-      const method = choice && CATEGORY_DESCRIPTION_OPTIONS[choice.response.remembered_with];
-      return method === "description" || method === "both";
-    },
+        }],
+        data: { categorydescriptionsave: true, screen: "category_description_text", kid: kid },
+      }],
+      conditional_function: function() {
+        const choice = jsPsych.data.get().filter({ screen: "category_description_choice" }).last(1).trials[0];
+        const method = choice && CATEGORY_DESCRIPTION_OPTIONS[choice.response.remembered_with];
+        return method === "description" || method === "both";
+      },
+    });
   });
 
   pushSaveTimeline(timeline, sessionFilename("category_description"), function() {
     const trials = jsPsych.data.get().filter({ categorydescriptionsave: true }).trials;
     const choice = trials.find(function(t) { return t.screen === "category_description_choice"; });
-    const page = trials.find(function(t) { return t.screen === "category_description_texts"; });
+    const pages = trials.filter(function(t) { return t.screen === "category_description_text"; });
     const row = {
       subjCode: participantId,
       trial_type: "category_description", // required for OSF to accept the data (same as FIT/IRQ)
       color_version: choice ? choice.color_version : "",
       remembered_with: choice ? CATEGORY_DESCRIPTION_OPTIONS[choice.response.remembered_with] : "",
-      group_order: page ? groupOrder.join(";") : "", // which kid's group was shown first, second, third
+      group_order: pages.length ? groupOrder.join(";") : "", // which kid's group was shown first, second, third
     };
     kids.forEach(function(kid) {
+      const page = pages.find(function(t) { return t.kid === kid; });
       row[`description_${kid}`] = page ? page.response[`description_${kid}`] : "";
     });
     return Papa.unparse([row]);
@@ -1205,9 +1200,10 @@ async function runExperiment() {
     document.body.appendChild(banner);
   }
 
-  const [trainingList, testList] = await Promise.all([
+  const [trainingList, testList, checks] = await Promise.all([
     readCSV(TRAINING_CSV),
     readCSV(TEST_CSV),
+    readCSV(CHECKS_CSV),
   ]);
 
   // This participant's color version: the same design, with its own
@@ -1217,11 +1213,18 @@ async function runExperiment() {
   let trainingBlocks = Array.from({ length: TRAINING_BLOCKS }, function() {
     return jsPsych.randomization.shuffle(training);
   });
-  let checksPerBlock = ONE_BACK_CHECKS_PER_BLOCK;
   let test = jsPsych.randomization.shuffle(testList.filter(inVersion));
   if (demoMode) {
-    trainingBlocks = [trainingBlocks[0].slice(0, DEMO_TRAINING_COUNT)];
-    checksPerBlock = DEMO_CHECKS;
+    // Block 1 only: one of its checks of each type, after its drawing, plus
+    // other drawings without a check in block 1, shuffled.
+    const demoChecks = ["kid", "color", "shape"].map(function(type) {
+      return checks.find(function(c) { return c.training_block === "1" && c.check_type === type; });
+    }).slice(0, DEMO_CHECKS);
+    const blockOneChecked = checks.filter(function(c) { return c.training_block === "1"; }).map(function(c) { return c.id; });
+    const demoDrawings = demoChecks.map(function(c) { return training.find(function(row) { return row.id === c.id; }); })
+      .concat(jsPsych.randomization.shuffle(training.filter(function(row) { return !blockOneChecked.includes(row.id); }))
+        .slice(0, DEMO_TRAINING_COUNT - demoChecks.length));
+    trainingBlocks = [jsPsych.randomization.shuffle(demoDrawings)];
     // One trial of every test type first, then fill up to DEMO_TEST_COUNT
     // from the rest; reshuffled so the types don't come in a fixed order.
     const firstOfEachType = [...new Set(test.map(function(row) { return row.test_type; }))].map(function(type) {
@@ -1235,7 +1238,7 @@ async function runExperiment() {
 
   const timeline = [];
   timeline.push(...buildInductionTimeline(
-    trainingBlocks, checksPerBlock, test, training,
+    trainingBlocks, checks, test, training,
     `images/${CONDITION}/instruction_examples/shapeA_ex1.svg`
   ));
 

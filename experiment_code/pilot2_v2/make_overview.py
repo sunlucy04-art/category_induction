@@ -32,7 +32,6 @@ SETTINGS = {
     "trainingBlocks": "TRAINING_BLOCKS",
     "drawingMs": "TRAINING_DRAWING_MS",
     "gapMs": "TRAINING_GAP_MS",
-    "checksPerBlock": "ONE_BACK_CHECKS_PER_BLOCK",
     "testToken": "TEST_FIGURE_TOKEN",
     "demoDrawings": "DEMO_TRAINING_COUNT",
     "demoChecks": "DEMO_CHECKS",
@@ -88,6 +87,9 @@ def main():
         "tests": [],
         "conditions": {},
     }
+    # attention checks: a fixed list, the same for every participant
+    checks = read_csv("attention_checks.csv")
+    data["settings"]["checksPerBlock"] = len(checks) // data["settings"]["trainingBlocks"]
 
     for r in (t for t in tests if t["design"] == first):
         options, i = [], 1
